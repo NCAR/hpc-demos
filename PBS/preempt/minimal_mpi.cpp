@@ -36,6 +36,7 @@ void my_sig_handler (int signum)
 
   switch (signum)
     {
+    case SIGSTOP:
     case SIGINT:
     case SIGTERM:
     case SIGUSR1:
@@ -66,6 +67,7 @@ void register_sig_handler ()
 {
   if (0 == rank) printf("Registering user-specified signal handlers for PID %d\n", getpid());
 
+  signal(SIGSTOP, my_sig_handler);
   signal(SIGINT,  my_sig_handler);
   signal(SIGTERM, my_sig_handler);
   signal(SIGUSR1, my_sig_handler);
@@ -80,13 +82,28 @@ void do_checkpoint (MPI_Comm comm)
     {
       if (0 == rank)
         {
-          printf("\t%2d : Inside checkpoint function\n",i);
+          time_t now;
+          time(&now);
+          printf("\t%2d : Inside checkpoint function : %s",i, ctime(&now));
           fflush(stdout);
           sleep(5);
         }
       MPI_Barrier(comm);
     }
+
   done_checkpoint();
+
+  if (0 == rank)
+    {
+      time_t now;
+      time(&now);
+      printf(" --> Gracefully exiting after checkpoint : %s", ctime(&now));
+      fflush(stdout);
+    }
+
+  MPI_Finalize();
+  exit(EXIT_SUCCESS);
+
   return;
 }
 
@@ -111,7 +128,9 @@ int main (int argc, char **argv)
     {
       if (0 == rank)
         {
-          printf("%2d : Main function loop\n",i);
+          time_t now;
+          time(&now);
+          printf("%2d : Main function loop : %s",i,ctime(&now));
           fflush(stdout);
           sleep(5);
         }

@@ -38,8 +38,9 @@ run: preempt_gust.sh
 
 run_mpi: preempt_gust_mpi.sh
 	qsub preempt_gust_mpi.sh
+
 runmany:
-	for cnt in $$(seq 1 20); do qsub preempt_gust_mpi.sh ; sleep 1s; done
+	for cnt in $$(seq 1 10); do qsub preempt_gust_mpi.sh ; sleep 1s; done
 
 qdelall:
-	qdel $$(qstat -u $${USER} | grep gusched | cut -d'.' -f1)
+	qdel -W force $$(qstat -u $${USER} | grep gusched | grep hello | cut -d'.' -f1)
