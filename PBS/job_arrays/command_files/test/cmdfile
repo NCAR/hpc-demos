@@ -1,8 +1,8 @@
 # this is a comment line.
 # and so is this.
-dd if=/dev/zero of=/dev/null bs=1M count=5001 # step 1
-dd if=/dev/zero of=/dev/null bs=1M count=5002 # step 2
-dd if=/dev/zero of=/dev/null bs=1M count=5003 # step 3
+dd if=/dev/zero of=/dev/null bs=1M count=5001 # step 1 - comments per step are allowed
+dd if=/dev/zero of=/dev/null bs=1M count=5002 # step 2   (but not required)
+dd if=/dev/zero of=/dev/null bs=1M count=5003
 dd if=/dev/zero of=/dev/null bs=1M count=5004 # step 4
 dd if=/dev/zero of=/dev/null bs=1M count=5005 # step 5
 dd if=/dev/zero of=/dev/null bs=1M count=5006 # step 6

@@ -48,9 +48,15 @@ case "${NCAR_HOST}" in
         defqueue="main"
         ;;
     "casper")
-        ppn=36
-        memlimit="300G"
+        # use less than full nodes on Casper.
+        ppn=8
+        memlimit="80G"
         defqueue="casper"
+        ;;
+    "cheyenne")
+        ppn=36
+        memlimit="50G"
+        defqueue="regular"
         ;;
     *)
         echo "ERROR: Unrecognized NCAR_HOST=${NCAR_HOST}"

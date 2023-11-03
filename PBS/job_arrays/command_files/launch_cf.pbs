@@ -94,7 +94,7 @@ for step in $(seq ${start_idx} ${stop_idx}); do
 
     # finally, launch our desired application with the requested arguments.  Redirect stdout/stderr to
     # the ./logs/ directory.
-    eval "${step_cmd} > ./${logs_dir}/stdout-$(printf '%04d' $((${step}+1)) ).log 2>&1 &"
+    eval "${step_cmd} > ./${logs_dir}/stdout-$(printf '%05d' $((${step}+1)) ).log 2>&1 &"
 done
 
 # wait for all the background processes to complete.
