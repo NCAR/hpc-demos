@@ -1,0 +1,104 @@
+#!/bin/bash
+#PBS -N launch_cf
+#PBS -j oe
+#PBS -l walltime=00:10:00
+## PBS_ARRAY_INDEX range, inclusive:  (can be overridden by qsub command line arguments)
+#PBS -J 0-3
+
+#------------------------------------------------------------------
+# bash function to count lines not beginning with "#" from a text file
+count_non_comment_lines ()
+{
+    # ref: https://www.baeldung.com/linux/read-specific-line-from-file
+    i=0
+    while read line; do
+	# skip comment lines beginning with "#"
+	[[ ${line:0:1} == "#" ]] && continue || i=$((i + 1))
+    done < "${1}"
+    echo ${i}
+    return 0
+}
+#------------------------------------------------------------------
+
+
+
+#------------------------------------------------------------------
+# bash function to extract the desired line number from a text file
+# (0-based indexing)
+getline ()
+{
+    # ref: https://www.baeldung.com/linux/read-specific-line-from-file
+    FILE="${1}"
+    LINE_NO=${2}
+
+    i=0
+    while read line; do
+        # skip comment lines beginning with "#"
+        [[ ${line:0:1} == "#" ]] && continue
+
+        test ${i} = ${LINE_NO} && echo "${line}" && return
+        i=$((i + 1))
+    done < "${FILE}"
+
+    echo "ERROR: line ${LINE_NO} not found, is ${FILE} too short? (only found ${i} non-comment lines)"
+    exit 1
+}
+#------------------------------------------------------------------
+
+
+
+env | grep PBS | sort | uniq
+
+
+### Set temp to scratch
+export TMPDIR=${SCRATCH}/tmp && mkdir -p ${TMPDIR}
+
+## determine the number of nodes, and processors per node we were assigned
+## (inferred from the ${PBS_NODEFILE})
+nodeslist=( $(cat ${PBS_NODEFILE} | sort | uniq | cut -d'.' -f1) )
+nnodes=$(cat ${PBS_NODEFILE} | sort | uniq | wc -l)
+nranks=$(cat ${PBS_NODEFILE} | sort | wc -l)
+nranks_per_node=$((${nranks} / ${nnodes}))
+
+[ ${nnodes} -eq 1 ] || { echo "ERROR: this example is intended to be run on 1 node, but with perhaps many array steps"; exit 1; }
+
+echo "${nranks} ${nnodes}x${nranks_per_node}"
+
+nsteps=$(count_non_comment_lines ./cmdfile)
+
+# this PBS_ARRAY_INDEX will compute multiple "steps" from cmdfile, up to ppn
+start_idx=$(( ${PBS_ARRAY_INDEX} * ${nranks_per_node} ))
+stop_idx=$(( ${start_idx} + ${nranks_per_node} - 1 ))
+
+echo "nsteps: ${nsteps}, array index: ${PBS_ARRAY_INDEX}"
+echo "start_idx=${start_idx} stop_idx=${stop_idx}"
+
+
+
+# create a logs directory to hold stdout from each process
+logs_dir=stdout-${PBS_ARRAY_ID/"[]"/}
+mkdir -p ./${logs_dir}
+
+# loop over each 'step' for which we are responsible.
+# launch our ./cmdfile lines, in the background
+for step in $(seq ${start_idx} ${stop_idx}); do
+
+    # the last PBS_ARRAY_INDEX could go past nsteps if the number of cmdfile
+    # is not evenly divisible by ppn - don't let it
+    [ ${step} -eq ${nsteps} ] && break
+
+    # get the command line arguments from cmdfile for this step.
+    # handles # comment lines in step too...)
+    step_cmd=$(getline ./cmdfile ${step} | cut -d'#' -f1)
+    echo "   PBS_ARRAY_INDEX=${PBS_ARRAY_INDEX} launching step $((${step}+1)) / ${step_cmd}"
+
+    # finally, launch our desired application with the requested arguments.  Redirect stdout/stderr to
+    # the ./logs/ directory.
+    eval "${step_cmd} > ./${logs_dir}/stdout-$(printf '%04d' $((${step}+1)) ).log 2>&1 &"
+done
+
+# wait for all the background processes to complete.
+# (otherwise, when this script exits, PBS thinks it is done and will kill any remaining processes...)
+wait
+
+echo "Done: PBS_ARRAY_INDEX=${PBS_ARRAY_INDEX} finished on $(date)"
