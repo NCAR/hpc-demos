@@ -28,11 +28,29 @@ count_non_comment_lines ()
 usage ()
 {
     echo "FIXME!!"
+
+    cat <<EOF
+${0} <-h|--help>
+     <--queue PBS_QUEUE>
+     <--ppn|--processors-per-node #CPUS>
+     <--steps-per-node #Steps/node>
+     <--nthreads|--threads-per-step #Threads/step>
+     <--mem|--memory RAM>
+     -A PBS_ACCOUNT -l walltime=01:00:00
+     ... other PBS args ...
+     <cmdfile>
+
+---
+
+All options in <>
+EOF
 }
 
 #------------------------------------------------------------------
 parse_args ()
 {
+    unset args_for_pbs
+
     while [ ${#} -gt 0 ] ; do
         # check the first argument
         case ${1} in
@@ -41,6 +59,36 @@ parse_args ()
                 usage
                 shift
                 exit 1
+                ;;
+
+            "--queue")
+                shift
+                queue=${1}
+                shift
+                ;;
+
+            "--ppn"|"--processors-per-node")
+                shift
+                ppn=${1}
+                shift
+                ;;
+
+            "--steps-per-node")
+                shift
+                steps_per_node=${1}
+                shift
+                ;;
+
+            "--nthreads"|"--threads-per-step")
+                shift
+                threads_per_step=${1}
+                shift
+                ;;
+
+            "--mem"|"--memory")
+                shift;
+                memlimit=${1}
+                shift
                 ;;
 
             *)
@@ -59,37 +107,41 @@ parse_args ()
 
 #------------------------------------------------------------------
 # var defaults.
-# FIXME: handle some command line args
-unset args_for_pbs
 command_file="./cmdfile"
+threads_per_step=1
 
 case "${NCAR_HOST}" in
     "derecho")
         ppn=128
         memlimit="235G"
-        defqueue="main"
+        queue="main"
         ;;
     "casper")
         # use less than full nodes on Casper.
         ppn=8
         memlimit="80G"
-        defqueue="casper"
+        queue="casper"
         ;;
     "cheyenne")
         ppn=36
         memlimit="50G"
-        defqueue="regular"
+        queue="regular"
         ;;
     *)
         echo "ERROR: Unrecognized NCAR_HOST=${NCAR_HOST}"
         exit 1
 esac
 
+# more defaults that depend on case above
+steps_per_node=${ppn}
+
+# finally, allow the user specify options
 parse_args $@
 
 #------------------------------------------------------------------
-# error checking
+# error & consistency checking
 [ -r ${command_file} ] || { echo "Cannot locate requested command file: ${command_file}"; exit 1; }
+[ $((${steps_per_node}*${threads_per_step})) -le ${ppn} ] || { echo "ERROR: ${steps_per_node}*${threads_per_step} > ${ppn}, check inputs!"; exit 1; }
 
 #------------------------------------------------------------------
 # main execution follows...
@@ -98,15 +150,18 @@ nsteps=$(count_non_comment_lines ${command_file})
 echo "Found nsteps=${nsteps} in ${command_file}"
 
 #------------------------------------------------------------------
-echo "Running ${ppn} steps / node on NCAR resource ${NCAR_HOST}"
+echo "Running ${steps_per_node} steps / node on NCAR resource ${NCAR_HOST}"
 
-njobs=$(( ${nsteps} / ${ppn} ))
-ss="1:ncpus=${ppn}:mpiprocs=${ppn}:mem=${memlimit}"
+njobs=$(( ${nsteps} / ${steps_per_node} ))
 
+# hackery: PBS will not allow us to submit a 1-entry array.
+# for that case we will be submitted without a -J arg
+[ ${njobs} -gt 0 ] && args_for_pbs="-J 0-${njobs} ${args_for_pbs}"
 
-# FIXME:  passes on all command arguments, if any, to qsub.
+ss="1:ncpus=${ppn}:mpiprocs=${steps_per_node}:ompthreads=${threads_per_step}:mem=${memlimit}"
+
 set -x
 qsub -v command_file="${command_file}" \
-     -q ${defqueue} -J 0-${njobs} -l select=${ss} \
+     -q ${queue} -l select=${ss} \
      ${args_for_pbs} \
      ${launch_cf_PBS_script}

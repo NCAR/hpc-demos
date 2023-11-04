@@ -1,8 +1,6 @@
 #!/bin/bash
 #PBS -N launch_cf
 #PBS -j oe
-## PBS_ARRAY_INDEX range, inclusive:  (can be overridden by qsub command line arguments)
-#PBS -J 0-3
 
 #------------------------------------------------------------------
 # bash function to count lines not beginning with "#" from a text file
@@ -43,7 +41,7 @@ getline_from_file ()
 
 tstart=$(date +%s)
 
-#env | grep PBS | sort | uniq
+env | egrep "PBS|THREAD" | sort | uniq
 
 ### Set temp to scratch, if ${SCRATCH } is set
 [ -n ${SCRATCH} ] && export TMPDIR=${SCRATCH}/tmp && mkdir -p ${TMPDIR}
@@ -64,15 +62,24 @@ nranks_per_node=$((${nranks} / ${nnodes}))
 
 [ ${nnodes} -eq 1 ] || { echo "ERROR: this example is intended to be run on 1 node, but with perhaps many array steps"; exit 1; }
 
-echo "${nranks} ${nnodes}x${nranks_per_node}"
+echo "(#steps/node) x (#threads/step) = ${nranks_per_node} x ${OMP_NUM_THREADS}"
 
-nsteps=$(count_non_comment_lines ${command_file})
+n_total_steps=$(count_non_comment_lines ${command_file})
+
+# hackery: PBS will not allow us to submit a 1-entry array.
+# so for that case we will be submitted without a -J arg, yet
+# still want the PBS_ARRAY_INDEX and PBS_ARRAY_ID defined...
+if [ -z "${PBS_ARRAY_INDEX}" ]; then
+    PBS_ARRAY_INDEX=0
+    PBS_ARRAY_ID=${PBS_JOBID}
+fi
+
 
 # this PBS_ARRAY_INDEX will compute multiple "steps" from ${command_file}, up to ppn
 start_idx=$(( ${PBS_ARRAY_INDEX} * ${nranks_per_node} ))
 stop_idx=$(( ${start_idx} + ${nranks_per_node} - 1 ))
 
-echo "nsteps: ${nsteps}, PBS_ARRAY_INDEX=${PBS_ARRAY_INDEX}"
+echo "n_total_steps: ${n_total_steps}, PBS_ARRAY_INDEX=${PBS_ARRAY_INDEX}"
 echo "start_idx=${start_idx} stop_idx=${stop_idx} "
 
 # create a logs directory to hold stdout from each process
@@ -83,9 +90,9 @@ mkdir -p ./${logs_dir}
 # launch our ${command_file} lines, in the background
 for step in $(seq ${start_idx} ${stop_idx}); do
 
-    # the last PBS_ARRAY_INDEX could go past nsteps if the number of ${command_file}
+    # the last PBS_ARRAY_INDEX could go past n_total_steps if the number of ${command_file}
     # is not evenly divisible by ppn - don't let it
-    [ ${step} -eq ${nsteps} ] && break
+    [ ${step} -ge ${n_total_steps} ] && break
 
     # get the command line arguments from ${command_file} for this step.
     # handles # comment lines in step too...)
