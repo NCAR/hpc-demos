@@ -33,13 +33,12 @@ ${0} <-h|--help>
      <--ppn|--processors-per-node #CPUS>
      <--steps-per-node #Steps/node>
      <--nthreads|--threads-per-step #Threads/step>
-     <--mem|--memory RAM>
+     <--mem|--memory RAM/node>
      -A PBS_ACCOUNT -l walltime=01:00:00
      ... other PBS args ...
      <command file>
 
----------------------------
-
+#------------------------------------------------------------------
 Executes a series of commands in a file.  The filename
 may be listed as an argument, or defaults to "./cmdfile".
 
@@ -51,10 +50,9 @@ be sourced prior to command execution, if found, and ca therefore
 be used to customize the environment with e.g. "module load" commands.
 
 All options in "<>" brackets are optional.  Any unrecognized arguments
-are passed through directly to qsub.  The PBS options -A and -l walltime
-are required at minimum.
-
----------------------------
+are passed through directly to qsub.
+The PBS options -A and -l walltime are required at minimum.
+#------------------------------------------------------------------
 
 Examples:
 

@@ -1,4 +1,4 @@
-
+all: gs_openmp omp_cmdfile
 
 gs_openmp: gs_openmp.c
 	gfortran -O2 -o $@ $< -fopenmp
