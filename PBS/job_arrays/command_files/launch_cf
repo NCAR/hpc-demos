@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 #----------------------------------------------------------------------------
 # environment & site config, if any
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -12,13 +10,10 @@ launch_cf_PBS_script="${SCRIPTDIR}/launch_cf.pbs"
 
 [ -f ${launch_cf_PBS_script} ] || { echo "ERROR: cannot locate ${launch_cf_PBS_script}"; exit 1; }
 
-
-
 #------------------------------------------------------------------
 # bash function to count lines not beginning with "#" from a text file
 count_non_comment_lines ()
 {
-    # ref: https://www.baeldung.com/linux/read-specific-line-from-file
     i=0
     while read line; do
 	# skip comment lines beginning with "#"
@@ -27,19 +22,46 @@ count_non_comment_lines ()
     echo ${i}
     return 0
 }
+
+
 #------------------------------------------------------------------
+usage ()
+{
+    echo "FIXME!!"
+}
 
+#------------------------------------------------------------------
+parse_args ()
+{
+    while [ ${#} -gt 0 ] ; do
+        # check the first argument
+        case ${1} in
 
+            "-h"|"--help")
+                usage
+                shift
+                exit 1
+                ;;
 
+            *)
+                if [ -f ${1} ]; then
+                    command_file="${1}"
+                else
+                    args_for_pbs="${args_for_pbs} ${1}"
+                fi
+                shift # past argument
+                ;;
+        esac
+    done
+
+    return
+}
 
 #------------------------------------------------------------------
 # var defaults.
 # FIXME: handle some command line args
-CMDFILE="cmdfile"
-
-nsteps=$(count_non_comment_lines ${CMDFILE})
-
-echo "Found nsteps=${nsteps} in ${CMDFILE}"
+unset args_for_pbs
+command_file="./cmdfile"
 
 case "${NCAR_HOST}" in
     "derecho")
@@ -62,8 +84,20 @@ case "${NCAR_HOST}" in
         echo "ERROR: Unrecognized NCAR_HOST=${NCAR_HOST}"
         exit 1
 esac
-#------------------------------------------------------------------
 
+parse_args $@
+
+#------------------------------------------------------------------
+# error checking
+[ -r ${command_file} ] || { echo "Cannot locate requested command file: ${command_file}"; exit 1; }
+
+#------------------------------------------------------------------
+# main execution follows...
+nsteps=$(count_non_comment_lines ${command_file})
+
+echo "Found nsteps=${nsteps} in ${command_file}"
+
+#------------------------------------------------------------------
 echo "Running ${ppn} steps / node on NCAR resource ${NCAR_HOST}"
 
 njobs=$(( ${nsteps} / ${ppn} ))
@@ -72,4 +106,7 @@ ss="1:ncpus=${ppn}:mpiprocs=${ppn}:mem=${memlimit}"
 
 # FIXME:  passes on all command arguments, if any, to qsub.
 set -x
-qsub -q ${defqueue} -J 0-${njobs} -l select=${ss} ${@} ${launch_cf_PBS_script}
+qsub -v command_file="${command_file}" \
+     -q ${defqueue} -J 0-${njobs} -l select=${ss} \
+     ${args_for_pbs} \
+     ${launch_cf_PBS_script}
