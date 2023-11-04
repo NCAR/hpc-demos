@@ -27,8 +27,6 @@ count_non_comment_lines ()
 #------------------------------------------------------------------
 usage ()
 {
-    echo "FIXME!!"
-
     cat <<EOF
 ${0} <-h|--help>
      <--queue PBS_QUEUE>
@@ -38,11 +36,33 @@ ${0} <-h|--help>
      <--mem|--memory RAM>
      -A PBS_ACCOUNT -l walltime=01:00:00
      ... other PBS args ...
-     <cmdfile>
+     <command file>
 
----
+---------------------------
 
-All options in <>
+Executes a series of commands in a file.  The filename
+may be listed as an argument, or defaults to "./cmdfile".
+
+All commands listed in the command file are executed
+relative to the submission directory.
+
+The optional bash configuration file "./config_env.sh" will
+be sourced prior to command execution, if found, and ca therefore
+be used to customize the environment with e.g. "module load" commands.
+
+All options in "<>" brackets are optional.  Any unrecognized arguments
+are passed through directly to qsub.  The PBS options -A and -l walltime
+are required at minimum.
+
+---------------------------
+
+Examples:
+
+  # launches the commands listed in ./cmdfile:
+  ${0} -A PBS_ACCOUNT -l walltime=1:00:00
+
+  # launches the OpenMP-threaded commands listed in ./omp_cmdfile:
+  ${0} -A PBS_ACCOUNT -l walltime=1:00:00 --nthreads 4 --steps-per-node 32 ./omp_cmdfile
 EOF
 }
 
