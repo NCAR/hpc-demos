@@ -46,7 +46,7 @@ All commands listed in the command file are executed
 relative to the submission directory.
 
 The optional bash configuration file "./config_env.sh" will
-be sourced prior to command execution, if found, and ca therefore
+be sourced prior to command execution, if found, and can therefore
 be used to customize the environment with e.g. "module load" commands.
 
 All options in "<>" brackets are optional.  Any unrecognized arguments
