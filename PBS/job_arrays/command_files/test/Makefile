@@ -1,9 +1,9 @@
 all: gs_openmp omp_cmdfile
 
 gs_openmp: gs_openmp.c
-	gfortran -O2 -o $@ $< -fopenmp
+	gcc -O2 -o $@ $< -fopenmp
 
-gs_openmp.c: Makefile
+gs_openmp.c:
 	rm -f $@
 	wget https://raw.githubusercontent.com/benkirk/paradigms_playground/master/gs_openmp.c
 

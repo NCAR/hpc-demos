@@ -163,14 +163,16 @@ parse_args $@
 
 #------------------------------------------------------------------
 # main execution follows...
-nsteps=$(count_non_comment_lines ${command_file})
+n_total_steps=$(count_non_comment_lines ${command_file})
 
-echo "Found nsteps=${nsteps} in ${command_file}"
+echo "Found n_total_steps=${n_total_steps} in ${command_file}"
 
 #------------------------------------------------------------------
-echo "Running ${steps_per_node} steps / node on NCAR resource ${NCAR_HOST}"
+njobs=$(( ${n_total_steps} / ${steps_per_node} ))
+ # evenly divisible?
+[ $(( ${njobs} * ${steps_per_node} )) -eq ${n_total_steps} ] && njobs=$((${njobs}-1))
+echo "Running $((${njobs}+1)) jobs with ${steps_per_node} steps / node on NCAR resource ${NCAR_HOST}"
 
-njobs=$(( ${nsteps} / ${steps_per_node} ))
 
 # hackery: PBS will not allow us to submit a 1-entry array.
 # for that case we will be submitted without a -J arg
