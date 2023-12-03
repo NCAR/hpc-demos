@@ -1,0 +1,27 @@
+#%Module1.0#####################################################################
+
+proc ModulesHelp { } {
+
+puts stderr " "
+puts stderr "This module loads the mpich library (cuda aware) built with the gnu12 toolchain."
+puts stderr "\nVersion 3.4.3\n"
+
+}
+module-whatis "Name: mpich built cuda-aware with gnu12 toolchain"
+module-whatis "Version: 3.4.3"
+module-whatis "Category: runtime library"
+module-whatis "Description: MPICH MPI implementation"
+module-whatis "URL: http://www.mpich.org"
+
+set     version			    3.4.3
+
+setenv          MPI_DIR             /opt/local/mpich-3.4.3-cuda
+prepend-path    PATH                /opt/local/mpich-3.4.3-cuda/bin
+prepend-path    MANPATH             /opt/local/mpich-3.4.3-cuda/share/man
+prepend-path	LD_LIBRARY_PATH	    /opt/local/mpich-3.4.3-cuda/lib
+prepend-path    MODULEPATH          /opt/ohpc/pub/moduledeps/gnu12-mpich
+prepend-path    PKG_CONFIG_PATH     /opt/local/mpich-3.4.3-cuda/lib/pkgconfig
+
+depends-on hwloc
+depends-on libfabric
+family "MPI"

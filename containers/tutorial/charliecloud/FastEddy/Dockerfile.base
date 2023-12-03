@@ -1,0 +1,97 @@
+FROM rockylinux/rockylinux:8
+
+ARG MPI_FAMILY=mpich
+ARG MPI_FAMILY_VARIANT=mpich-ofi
+ARG COMPILER_VERSION=gnu9
+
+COPY extras/clean-image /usr/bin/clean-image
+RUN chmod +x /usr/bin/clean-image && clean-image
+
+RUN echo "NCAR-specific mount points & bind-mount MPI hackery" \
+    && mkdir -p \
+             /run \
+             /host/lib64 \
+             /opt/cray \
+             /glade/u/home \
+             /glade/work \
+             /glade/campaign \
+             /glade/derecho/scratch \
+             /local_scratch
+
+# Basic OpenHPC development environment setup, derived from Install_guide-Rocky8-Warewulf-SLURM-2.4
+RUN echo "yum/dnf config" \
+    && set -x \
+    && yum -y update \
+    && yum -y install which git tar curl xz \
+    && yum -y install http://repos.openhpc.community/OpenHPC/2/EL_8/x86_64/ohpc-release-2-1.el8.x86_64.rpm \
+    && yum -y install dnf-plugins-core \
+    && yum config-manager --set-enabled powertools \
+    && yum -y install ohpc-base \
+    && yum -y install lmod-ohpc nhc-ohpc ohpc-autotools \
+    && yum -y install ${COMPILER_VERSION}-compilers-ohpc \
+    && yum -y install hwloc-ohpc valgrind-ohpc \
+    && yum -y install ${MPI_FAMILY_VARIANT}-${COMPILER_VERSION}-ohpc \
+    && yum -y install lmod-defaults-${COMPILER_VERSION}-${MPI_FAMILY_VARIANT}-ohpc \
+    && clean-image
+
+# Prevent mpicxx from linking -lmpicxx, which we do not need, and cannot use on our Cray-EX
+RUN sed -i 's/cxxlibs="-lmpicxx"/cxxlibs= #"-lmpicxx"/g' /opt/ohpc/pub/mpi/${MPI_FAMILY_VARIANT}-${COMPILER_VERSION}-ohpc/3.4.2/bin/mpicxx
+
+#-------------------------------
+#-------------------------------
+
+# https://developer.nvidia.com/cuda-11-7-1-download-archive
+RUN echo "Cuda" \
+    && curl -O https://developer.download.nvidia.com/compute/cuda/11.7.1/local_installers/cuda-repo-rhel8-11-7-local-11.7.1_515.65.01-1.x86_64.rpm \
+    && rpm -i cuda-repo-rhel8-11-7-local-11.7.1_515.65.01-1.x86_64.rpm && rm -f cuda-repo-rhel8-11-7-local-11.7.1_515.65.01-1.x86_64.rpm \
+    && dnf -y module install nvidia-driver:latest-dkms \
+    && dnf -y install cuda \
+    && clean-image
+
+RUN echo "RDMA prereqs" \
+    && yum -y install libibverbs-devel libpsm2-devel \
+    && echo "Minimal Python3 & tools to bootstrap MPICH" \
+    && yum -y install python3 patch\
+    && clean-image
+
+
+RUN mkdir -p /opt/local /opt/ohpc/pub/moduledeps/${COMPILER_VERSION}/cuda \
+
+COPY extras/cuda-11.7 /opt/ohpc/pub/moduledeps/${COMPILER_VERSION}/cuda/11.7
+COPY extras/mpich-3.4.3-ofi-cuda /opt/ohpc/pub/moduledeps/${COMPILER_VERSION}/mpich/3.4.3-ofi-cuda
+# COPY extras/hello_world_mpi.C /opt/local/
+# COPY extras/bootstrap_libmesh.sh /opt/local/
+COPY extras/install_benchmarks.sh /opt/local/
+
+# Build an identical MPICH to that in the base OpenHPC envirionment, except with CUDA support.
+#
+# NOTE: when running under Charliecloud it seems necessary to re-bootstrap the autotools
+# build system with ./autogen.sh to prevent libtool link errors.  The issue does not present
+# under Docker as a 'plainuser' for some reason.
+RUN source /etc/profile.d/lmod.sh \
+    && module purge && module load ${COMPILER_VERSION} && module avail \
+    && module load autotools hwloc libfabric cuda \
+    && module list \
+    && cd /tmp && curl -sSL https://www.mpich.org/static/downloads/3.4.3/mpich-3.4.3.tar.gz | tar xz \
+    && cd mpich-3.4.3 \
+    && ./autogen.sh \
+    && ./configure --prefix=/opt/local/mpich-3.4.3-cuda \
+                   CC=$(which gcc) CXX=$(which g++) FC=$(which gfortran) F77=$(which gfortran) PYTHON=$(which python3) \
+                   --enable-fortran \
+                   --with-libfabric=${LIBFABRIC_DIR} \
+                   --with-hwloc-prefix=${HWLOC_DIR} \
+                   --with-cuda=${CUDA_HOME} \
+    && make -j 8 && make install \
+    && clean-image
+
+# Prevent mpicxx from linking -lmpicxx, which we do not need, and cannot use on our Cray-EX
+RUN sed -i 's/cxxlibs="-lmpicxx"/cxxlibs= #"-lmpicxx"/g' /opt/local/mpich-3.4.3-cuda/bin/mpicxx
+
+RUN source /etc/profile.d/lmod.sh \
+    && module purge \
+    && module load ${COMPILER_VERSION} cuda mpich/3.4.3-ofi-cuda && module list \
+    && sh /opt/local/install_benchmarks.sh
+
+# Local Variables:
+# mode: sh
+# End:
