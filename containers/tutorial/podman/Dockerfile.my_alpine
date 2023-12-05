@@ -1,0 +1,9 @@
+FROM docker.io/alpine:latest
+
+COPY extras/speak.sh /opt/container/speak.sh
+COPY extras/list_glade_filesystems.sh /opt/container/list_glade_filesystems.sh
+
+RUN chmod +x /opt/container/*.sh
+
+ENV CONTAINER_VAR="bar" \
+    TOGGLE_VAR="set from INSIDE"
