@@ -3,25 +3,30 @@
 module load charliecloud >/dev/null 2>&1
 
 make my_alpine.sqfs || exit 1
+. config_demo_env_vars.sh || exit 1
 
-export HOST_VAR="foo"
-export TOGGLE_VAR="set_from_OUTSIDE"
-unset RANDOM_VAR
-
-echo -e "\nStep #1:"
+echo -e "\n# Step #1:"
+set -x
 ch-run \
     ./my_alpine.sqfs -- /opt/container/speak.sh
+set +x
 
-echo -e "\nStep #2:"
+echo -e "\n# Step #2:"
+set -x
 ch-run \
     ./my_alpine.sqfs -- /opt/container/speak.sh
+set +x
 
-echo -e "\nStep #3:"
+echo -e "\n# Step #3:"
+set -x
 ch-run \
     --set-env=TOGGLE_VAR="${TOGGLE_VAR}" \
     ./my_alpine.sqfs -- /opt/container/speak.sh
+set +x
 
-echo -e "\nStep #4:"
+echo -e "\n# Step #4:"
+set -x
 ch-run \
     --set-env=RANDOM_VAR="set_on_command-line" \
     ./my_alpine.sqfs -- /opt/container/speak.sh
+set +x
