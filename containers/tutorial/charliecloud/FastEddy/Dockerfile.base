@@ -44,7 +44,6 @@ RUN sed -i 's/cxxlibs="-lmpicxx"/cxxlibs= #"-lmpicxx"/g' /opt/ohpc/pub/mpi/${MPI
 RUN echo "Cuda" \
     && curl -O https://developer.download.nvidia.com/compute/cuda/11.7.1/local_installers/cuda-repo-rhel8-11-7-local-11.7.1_515.65.01-1.x86_64.rpm \
     && rpm -i cuda-repo-rhel8-11-7-local-11.7.1_515.65.01-1.x86_64.rpm && rm -f cuda-repo-rhel8-11-7-local-11.7.1_515.65.01-1.x86_64.rpm \
-    && dnf -y module install nvidia-driver:latest-dkms \
     && dnf -y install cuda \
     && clean-image
 

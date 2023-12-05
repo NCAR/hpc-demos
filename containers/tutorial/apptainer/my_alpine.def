@@ -1,0 +1,13 @@
+Bootstrap: docker
+From: docker.io/alpine:latest
+
+%files
+   ./extras/speak.sh /opt/container/speak.sh
+   ./extras/list_glade_filesystems.sh /opt/container/list_glade_filesystems.sh
+
+%post
+   chmod +x /opt/container/*.sh
+
+%environment
+    export CONTAINER_VAR="bar"
+    export TOGGLE_VAR="set from INSIDE"

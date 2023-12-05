@@ -4,4 +4,5 @@ RUN yum -y install dnf-plugins-core \
     && dnf -y update \
     && dnf config-manager --set-enabled crb \
     && dnf -y install epel-release \
+    && dnf -y install xpdf \
     && dnf clean all --verbose

@@ -24,4 +24,5 @@ prepend-path    PKG_CONFIG_PATH     /opt/local/mpich-3.4.3-cuda/lib/pkgconfig
 
 depends-on hwloc
 depends-on libfabric
+depends-on cuda
 family "MPI"

@@ -6,13 +6,8 @@ From: docker.io/rockylinux/rockylinux:9
         && dnf -y update \
         && dnf config-manager --set-enabled crb \
         && dnf -y install epel-release \
-        && dnf -y groupinstall "Development Tools" \
-        && dnf -y install \
-               chrpath \
-               bzip2 autoconf automake libtool \
-               gcc gcc-c++ gcc-gfortran emacs make procps-ng openmpi-devel \
+        && dnf -y install xpdf \
         && dnf clean all --verbose
 
 %environment
-    export SSL_CERT_FILE=/etc/ssl/certs/updated-ca-bundle.pem
-    export CURL_CA_BUNDLE=/etc/ssl/certs/updated-ca-bundle.pem
+    export MY_CONTANER_VAR="foo"
