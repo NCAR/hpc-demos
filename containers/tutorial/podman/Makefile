@@ -7,3 +7,12 @@ my_alpine.stamp: Dockerfile.my_alpine extras/ Makefile
 extras/: ../apptainer/extras/
 	rm -rf $@
 	cp -r $< $@
+
+results/05_env_vars.sh.out: 05_env_vars.sh my_alpine.stamp Makefile
+	mkdir -p results
+	rm -f $@
+	./$< 2>&1 | grep -v "\+ set " > $@.tmp
+	sed -i 's/+ /host\$$ /g' $@.tmp
+	sed -i 's/--log-level error //g' $@.tmp
+	mv $@{.tmp,}
+	cat $@

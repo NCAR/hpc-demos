@@ -2,10 +2,10 @@
 
 module load podman >/dev/null 2>&1
 
-make my_alpine.stamp || exit 1
+make -s my_alpine.stamp || exit 1
 . config_demo_env_vars.sh || exit 1
 
-echo -e "\n# Step #1:"
+echo -e "# Step #1:"
 set -x
 podman \
     --log-level error \

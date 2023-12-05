@@ -2,10 +2,10 @@
 
 module load charliecloud >/dev/null 2>&1
 
-make my_alpine.sqfs || exit 1
+make -s my_alpine.sqfs || exit 1
 . config_demo_env_vars.sh || exit 1
 
-echo -e "\n# Step #1:"
+echo -e "# Step #1:"
 set -x
 ch-run \
     ./my_alpine.sqfs -- /opt/container/speak.sh
