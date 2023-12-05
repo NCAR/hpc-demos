@@ -6,4 +6,4 @@ COPY extras/list_glade_filesystems.sh /opt/container/list_glade_filesystems.sh
 RUN chmod +x /opt/container/*.sh
 
 ENV CONTAINER_VAR="bar" \
-    TOGGLE_VAR="set from INSIDE"
+    TOGGLE_VAR="set_from_INSIDE"

@@ -5,7 +5,7 @@ module load podman >/dev/null 2>&1
 make my_alpine.stamp || exit 1
 
 export HOST_VAR="foo"
-export TOGGLE_VAR="set from OUTSIDE"
+export TOGGLE_VAR="set_from_OUTSIDE"
 unset RANDOM_VAR
 
 echo -e "\nStep #1:"
@@ -32,5 +32,5 @@ echo -e "\nStep #4:"
 podman \
     --log-level error \
     run \
-    --env RANDOM_VAR="set on command-line" \
+    --env RANDOM_VAR="set_on_command-line" \
     my_alpine:latest /opt/container/speak.sh

@@ -10,4 +10,4 @@ From: docker.io/alpine:latest
 
 %environment
     export CONTAINER_VAR="bar"
-    export TOGGLE_VAR="set from INSIDE"
+    export TOGGLE_VAR="set_from_INSIDE"
