@@ -2,7 +2,7 @@ my_alpine.sif: my_alpine.def extras/
 	module load apptainer ; \
 	TMPDIR=/var/tmp singularity build $@ $<
 
-results/05_env_vars.sh.out: 05_env_vars.sh my_alpine.sif Makefile
+results/%.out: % my_alpine.sif Makefile
 	mkdir -p results
 	rm -f $@
 	./$< 2>&1 | grep -v "\+ set " > $@.tmp

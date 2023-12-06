@@ -1,5 +1,6 @@
 run: run_fasteddy_container.pbs rocky8-openhpc-fasteddy.sif Example02_CBL.in check-env
-	mkdir ./output
+	rm -rf ./output
+	mkdir -p ./output
 	qsub -A $${PBS_ACCOUNT} $<
 
 check-env:
@@ -19,3 +20,23 @@ Example02_CBL.in: Makefile
 	sed -i 's/numProcsX = 4/numProcsX = 24/' $@.tmp
 	sed -i 's/ioOutputMode = 0/ioOutputMode = 1/' $@.tmp
 	mv $@{.tmp,}
+
+fasteddy/$(NCAR_BUILD_ENV)/FastEddy: fasteddy/$(NCAR_BUILD_ENV)
+
+fasteddy/$(NCAR_BUILD_ENV): Makefile
+	rm -rf $@
+	prefix=$$(pwd)/$@ ; \
+	  mkdir -p $${prefix} ; \
+	  cd $${prefix} ; \
+	  git clone https://github.com/NCAR/FastEddy-model.git ; \
+	  cd $${prefix}/FastEddy-model/SRC && fe_inc= && for d in */ */*/ ; do fe_inc="-I$$(pwd)/$${d} $${fe_inc}" ; done ; \
+	  module list ; \
+	  cd FEMAIN ; \
+	  make \
+	    TEST_CU_CC="nvcc -allow-unsupported-compiler" \
+	    ARCH_CU_FLAGS="-arch=sm_80" \
+	    TEST_LDFLAGS="-L$${CUDA_HOME}/targets/x86_64-linux/lib -lcurand -lcudart -lcuda -L$${NETCDF}/lib -lnetcdf" ; \
+	mv ./FastEddy $${prefix}/ ; \
+	cd $${prefix}/ ; \
+	rm -rf $${prefix}/FastEddy-model ; \
+	ldd $${prefix}/FastEddy
