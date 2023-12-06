@@ -2,7 +2,7 @@
 
 module load apptainer >/dev/null 2>&1
 
-make my_alpine.sif || exit 1
+make -s my_alpine.sif || exit 1
 
 echo -e "\n# Step #1:"
 set -x
