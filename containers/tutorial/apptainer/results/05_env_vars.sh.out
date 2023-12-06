@@ -1,0 +1,32 @@
+# Step #1:
+host$ singularity run ./my_alpine.sif /opt/container/speak.sh
+------------------------------
+HOST_VAR=foo
+CONTAINER_VAR=bar
+TOGGLE_VAR=set_from_INSIDE
+------------------------------
+
+# Step #2:
+host$ singularity run --cleanenv ./my_alpine.sif /opt/container/speak.sh
+------------------------------
+HOST_VAR=
+CONTAINER_VAR=bar
+TOGGLE_VAR=set_from_INSIDE
+------------------------------
+
+# Step #3:
+host$ singularity run --cleanenv --env TOGGLE_VAR=set_from_OUTSIDE ./my_alpine.sif /opt/container/speak.sh
+------------------------------
+HOST_VAR=
+CONTAINER_VAR=bar
+TOGGLE_VAR=set_from_OUTSIDE
+------------------------------
+
+# Step #4:
+host$ singularity run --cleanenv --env RANDOM_VAR=set_on_command-line ./my_alpine.sif /opt/container/speak.sh
+------------------------------
+HOST_VAR=
+CONTAINER_VAR=bar
+TOGGLE_VAR=set_from_INSIDE
+RANDOM_VAR=set_on_command-line
+------------------------------

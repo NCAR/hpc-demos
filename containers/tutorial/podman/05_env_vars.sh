@@ -18,20 +18,11 @@ set -x
 podman \
     --log-level error \
     run \
-    --env HOST_VAR \
-    my_alpine:latest /opt/container/speak.sh
-set +x
-
-echo -e "\n# Step #3:"
-set -x
-podman \
-    --log-level error \
-    run \
     --env TOGGLE_VAR="${TOGGLE_VAR}" \
     my_alpine:latest /opt/container/speak.sh
 set +x
 
-echo -e "\n# Step #4:"
+echo -e "\n# Step #3:"
 set -x
 podman \
     --log-level error \

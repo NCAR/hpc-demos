@@ -14,17 +14,11 @@ set +x
 echo -e "\n# Step #2:"
 set -x
 ch-run \
-    ./my_alpine.sqfs -- /opt/container/speak.sh
-set +x
-
-echo -e "\n# Step #3:"
-set -x
-ch-run \
     --set-env=TOGGLE_VAR="${TOGGLE_VAR}" \
     ./my_alpine.sqfs -- /opt/container/speak.sh
 set +x
 
-echo -e "\n# Step #4:"
+echo -e "\n# Step #3:"
 set -x
 ch-run \
     --set-env=RANDOM_VAR="set_on_command-line" \

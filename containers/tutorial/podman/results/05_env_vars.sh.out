@@ -1,0 +1,24 @@
+# Step #1:
+host$ podman run my_alpine:latest /opt/container/speak.sh
+------------------------------
+HOST_VAR=
+CONTAINER_VAR=bar
+TOGGLE_VAR=set_from_INSIDE
+------------------------------
+
+# Step #2:
+host$ podman run --env TOGGLE_VAR=set_from_OUTSIDE my_alpine:latest /opt/container/speak.sh
+------------------------------
+HOST_VAR=
+CONTAINER_VAR=bar
+TOGGLE_VAR=set_from_OUTSIDE
+------------------------------
+
+# Step #3:
+host$ podman run --env RANDOM_VAR=set_on_command-line my_alpine:latest /opt/container/speak.sh
+------------------------------
+HOST_VAR=
+CONTAINER_VAR=bar
+TOGGLE_VAR=set_from_INSIDE
+RANDOM_VAR=set_on_command-line
+------------------------------

@@ -1,0 +1,24 @@
+# Step #1:
+host$ ch-run ./my_alpine.sqfs -- /opt/container/speak.sh
+------------------------------
+HOST_VAR=foo
+CONTAINER_VAR=
+TOGGLE_VAR=set_from_OUTSIDE
+------------------------------
+
+# Step #2:
+host$ ch-run --set-env=TOGGLE_VAR=set_from_OUTSIDE ./my_alpine.sqfs -- /opt/container/speak.sh
+------------------------------
+HOST_VAR=foo
+CONTAINER_VAR=
+TOGGLE_VAR=set_from_OUTSIDE
+------------------------------
+
+# Step #3:
+host$ ch-run --set-env=RANDOM_VAR=set_on_command-line ./my_alpine.sqfs -- /opt/container/speak.sh
+------------------------------
+HOST_VAR=foo
+CONTAINER_VAR=
+TOGGLE_VAR=set_from_OUTSIDE
+RANDOM_VAR=set_on_command-line
+------------------------------
