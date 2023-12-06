@@ -1,0 +1,30 @@
+make[1]: 'my_alpine.sif' is up to date.
+
+# Step #1:
+host$ singularity run ./my_alpine.sif /opt/container/list_glade_filesystems.sh
+------------------------------
+HOME=/glade/u/home/benkirk
+PWD=/glade/u/home/benkirk
+glade_user              150.0T     77.7T     72.3T  52% /glade/u/home/benkirk
+------------------------------
+
+# Step #2:
+host$ singularity run --pwd /opt/container ./my_alpine.sif /opt/container/list_glade_filesystems.sh
+------------------------------
+HOME=/glade/u/home/benkirk
+PWD=/opt/container
+glade_user              150.0T     77.7T     72.3T  52% /glade/u/home/benkirk
+------------------------------
+
+# Step #3:
+host$ singularity run --bind /glade/u/home/benkirk --bind /glade/derecho/scratch --bind /glade/work --bind /glade/campaign --bind /glade/work:/random/path ./my_alpine.sif /opt/container/list_glade_filesystems.sh
+------------------------------
+HOME=/glade/u/home/benkirk
+PWD=/glade/work/benkirk/repos/csg-utils/hpc-demos/containers/tutorial/apptainer
+glade_user              150.0T     77.7T     72.3T  52% /glade/u/home/benkirk
+glade_user              150.0T     77.7T     72.3T  52% /glade/u/home/benkirk
+                         54.5P     10.7P     43.3P  20% /glade/derecho/scratch
+csfs1                     4.0P    983.1T      3.0P  24% /glade/work
+csfs1                   120.7P     93.5P     27.2P  77% /glade/campaign
+csfs1                     4.0P    983.1T      3.0P  24% /random/path
+------------------------------

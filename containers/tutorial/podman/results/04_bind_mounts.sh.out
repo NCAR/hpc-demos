@@ -1,0 +1,18 @@
+# Step #1:
+host$ podman run my_alpine:latest /opt/container/list_glade_filesystems.sh
+------------------------------
+HOME=/root
+PWD=/
+------------------------------
+
+# Step #2:
+host$ podman run --volume /glade/u/home/benkirk --volume /glade/derecho/scratch --volume /glade/work --volume /glade/campaign --volume /glade/work:/random/path my_alpine:latest /opt/container/list_glade_filesystems.sh
+------------------------------
+HOME=/root
+PWD=/
+mergedroot              188.3G      2.0G    186.3G   1% /glade/work
+csfs1                     4.0P    983.1T      3.0P  24% /random/path
+mergedroot              188.3G      2.0G    186.3G   1% /glade/campaign
+mergedroot              188.3G      2.0G    186.3G   1% /glade/derecho/scratch
+mergedroot              188.3G      2.0G    186.3G   1% /glade/u/home/benkirk
+------------------------------

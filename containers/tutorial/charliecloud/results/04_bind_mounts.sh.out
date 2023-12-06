@@ -1,0 +1,21 @@
+# Step #1:
+host$ ch-run ./my_alpine.sqfs -- /opt/container/list_glade_filesystems.sh
+------------------------------
+HOME=/glade/u/home/benkirk
+PWD=/
+------------------------------
+
+# Step #2:
+host$ ch-run --bind=/glade/derecho/scratch --bind=/glade/work --bind=/glade/campaign --bind=/glade/work:/random/path ./my_alpine.sqfs -- /opt/container/list_glade_filesystems.sh
+------------------------------
+HOME=/glade/u/home/benkirk
+PWD=/
+                         54.5P     10.7P     43.3P  20% /glade/derecho/scratch
+csfs1                     4.0P    983.1T      3.0P  24% /glade/work
+csfs1                   120.7P     93.5P     27.2P  77% /glade/campaign
+csfs1                     4.0P    983.1T      3.0P  24% /random/path
+------------------------------
+
+# Step #3:
+host$ ch-run --bind=/glade/derecho/scratch --bind=/glade/work --bind=/glade/campaign --bind=/glade/work:/random/other/path ./my_alpine.sqfs -- /opt/container/list_glade_filesystems.sh
+ch-run[73181]: error: can't mkdir: /var/tmp/benkirk.ch/mnt/random/other: Read-only file system (ch_misc.c:409 30)
