@@ -1,0 +1,23 @@
+run-%: %.sif
+	module load apptainer ; \
+	singularity \
+	  --quiet \
+	  shell \
+	  --nv --cleanenv \
+	  --writable-tmpfs \
+	  --bind /glade/work \
+	  --bind /glade/campaign \
+	  --bind /glade/derecho/scratch \
+	  ./$<
+
+my_%.sif %.sif: %.def
+	module load apptainer ; \
+	export APPTAINER_TMPDIR=/var/tmp/ ; \
+	export APPTAINER_CACHEDIR=${WORK}/.apptainer-cache/ ; \
+	singularity build $@ $<
+
+.PRECIOUS: %.sif
+
+# Local Variables:
+# mode: makefile
+# End:

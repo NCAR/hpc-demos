@@ -1,0 +1,19 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/modulus/modulus:23.09
+
+%post
+    # update pip
+    python -m pip install --upgrade pip
+
+    # use pip to install additional packages needed for examples later
+    pip install warp-lang
+
+    # Remove cuda compat layer (https://github.com/NVIDIA/nvidia-docker/issues/1256)
+    # note that the source container attempts to do this at run-time, but that will
+    # fail when launched read-only.  So we do that here instead.
+    # (This issue will likely be resolved with newer versions of nvidia-modulus)
+    rm -rf /usr/local/cuda/compat/lib
+
+# Local Variables:
+# mode: sh
+# End:

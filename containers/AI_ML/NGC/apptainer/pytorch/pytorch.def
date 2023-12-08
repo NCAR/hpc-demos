@@ -1,0 +1,16 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:23.11-py3
+
+%post
+    # update pip
+    python -m pip install --upgrade pip
+
+    # use pip to install additional packages needed for examples later
+    pip install --upgrade keras
+
+    # Install sample cases
+    mkdir -p container && git clone --depth 1 https://github.com/keras-team/keras-io.git /container/keras-io
+
+# Local Variables:
+# mode: sh
+# End:
