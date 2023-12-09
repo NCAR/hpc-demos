@@ -1,0 +1,22 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/tensorflow:23.11-tf2-py3
+
+%post
+    # update pip
+    python -m pip install --upgrade pip
+
+    # remove old jax
+    pip uninstall --yes jax
+
+    pip install \
+        numpy scipy matplotlib pandas \
+        pydoe \
+        rich \
+        jaxlib 'jax[cuda12_local]' -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+    # Install sample cases
+    mkdir -p /container && git clone --depth 1 https://github.com/keras-team/keras-io.git /container/keras-io
+
+# Local Variables:
+# mode: sh
+# End:
