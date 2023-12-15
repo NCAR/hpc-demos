@@ -1,0 +1,8 @@
+# run my frequent cron job every 15 minutes
+*/15 * * * * cd /glade/u/home/benkirk/my_cron/ && mkdir -p logs && ./frequent.sh &>> logs/frequent.log
+
+# run my hourly cron jobs at 10 minutes past every hour
+10 * * * * cd /glade/u/home/benkirk/my_cron/ && mkdir -p logs && ./hourly.sh &>> logs/hourly.log
+
+# run my daily cron jobs at 00:45 am.
+45 0 * * * cd /glade/u/home/benkirk/my_cron/ && mkdir -p logs && ./daily.sh &>> logs/daily.log
