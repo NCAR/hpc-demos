@@ -15,6 +15,28 @@ nranks_per_node=$((${nranks} / ${nnodes}))
 
 container_image="./rocky8-openhpc-fasteddy.sif"
 
+singularity \
+    --quiet \
+    exec \
+    ${container_image} \
+    ldd /opt/local/FastEddy-model/SRC/FEMAIN/FastEddy
+
+singularity \
+    --quiet \
+    exec \
+    --bind ${SCRATCH} \
+    --bind ${WORK} \
+    --pwd $(pwd) \
+    --bind /run \
+    --bind /opt/cray \
+    --bind /usr/lib64:/host/lib64 \
+    --env LD_LIBRARY_PATH=${CRAY_MPICH_DIR}/lib-abi-mpich:/opt/cray/pe/lib64:${LD_LIBRARY_PATH}:/host/lib64 \
+    --env LD_PRELOAD=/opt/cray/pe/mpich/${CRAY_MPICH_VERSION}/gtl/lib/libmpi_gtl_cuda.so.0 \
+    ${container_image} \
+    ldd /opt/local/FastEddy-model/SRC/FEMAIN/FastEddy
+
+
+
 echo "# --> BEGIN execution"; tstart=$(date +%s)
 
 mpiexec \
