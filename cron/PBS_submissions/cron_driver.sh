@@ -35,7 +35,7 @@ echo "PATH=${PATH}"
 
 #--------------------------------------------------------------
 # go to desired directory, exit on failure:
-cd /glade/work/${USER}/my_cron_job/ || exit 1
+cd /glade/work/${USER}/my_cron_job/ || { echo "cannot cd to the desired directory!!"; exit 1; }
 
 # clean up any old INPUT_DATA
 rm -f ./INPUT_DATA
@@ -45,4 +45,4 @@ PREREQ=$(qsub -q casper@casper-pbs ./prep_job.pbs) || { echo "cannot connect to 
 echo ${PREREQ}
 
 # lauch model job
-qsub -q main@desched1 -W depend=afterok:$PREREQ ./run_model.pbs || { echo "cannot connect to Derecho PBS"; exit 1; }
+qsub -q main@desched1 -W depend=afterok:${PREREQ} ./run_model.pbs || { echo "cannot connect to Derecho PBS"; exit 1; }
