@@ -31,9 +31,6 @@ echo -e "[${timestamp}]: Running ${0} on $(hostname)\n\tfrom $(pwd)\n\tscriptdir
     | tee -a ${cron_logdir}/sample_job.log
 
 #--------------------------------------------------------------
-echo "PATH=${PATH}"
-
-#--------------------------------------------------------------
 # go to desired directory, exit on failure:
 cd /glade/work/${USER}/my_cron_job/ || { echo "cannot cd to the desired directory!!"; exit 1; }
 
