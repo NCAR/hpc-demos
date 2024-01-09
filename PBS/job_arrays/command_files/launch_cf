@@ -3,7 +3,6 @@
 #----------------------------------------------------------------------------
 # environment & site config, if any
 SCRIPTDIR="$( cd "$( dirname "$(readlink -f ${BASH_SOURCE[0]})" )" >/dev/null 2>&1 && pwd )"
-[ -f ${SCRIPTDIR}/config_env.sh ] && . ${SCRIPTDIR}/config_env.sh
 #----------------------------------------------------------------------------
 
 launch_cf_PBS_script="${SCRIPTDIR}/launch_cf.pbs"
@@ -29,11 +28,13 @@ usage ()
 {
     cat <<EOF
 ${0} <-h|--help>
-     <--queue PBS_QUEUE>
+     <-q|--queue PBS_QUEUE>
      <--ppn|--processors-per-node #CPUS>
      <--steps-per-node #Steps/node>
      <--nthreads|--threads-per-step #Threads/step>
      <--mem|--memory RAM/node>
+     <--cpu_type TYPE>
+     <--random_start_delay MAX_DELAY (sec)>
      -A PBS_ACCOUNT -l walltime=01:00:00
      ... other PBS args ...
      <command file>
@@ -64,14 +65,85 @@ Examples:
 EOF
 }
 
+
+#------------------------------------------------------------------
+set_defaults ()
+{
+    case "${1}" in
+        "derecho")
+            max_ppn=128
+            [ -z "${ppn}" ]       && ppn=${max_ppn}
+            [ -z "${mem_limit}" ] && mem_limit="235G"
+            [ -z "${queue}" ]     && queue="main"
+            ;;
+        "casper")
+            max_ppn=36
+            # use less than full nodes on Casper by default
+            [ -z "${ppn}" ]       && ppn=1
+            [ -z "${mem_limit}" ] && mem_limit="10G"
+            [ -z "${queue}" ]     && queue="casper"
+            ;;
+        *)
+            echo "ERROR: Unrecognized execution host=${1}"
+            exit 1
+    esac
+    return
+}
+
+
+#------------------------------------------------------------------
+parse_queue_args ()
+{
+    while [ ${#} -gt 0 ] ; do
+        case ${1} in
+            "-q"|"--queue")
+                shift
+                queue=${1}
+                shift
+                case ${queue} in
+                    *"@casper-pbs"*) execution_host="casper";   ;;
+                    *"@desched"*)    execution_host="derecho";  ;;
+                esac
+                ;;
+            # ignore anything else (will get to those in the comprehensive parse_args
+            *)
+                shift
+                ;;
+        esac
+    done
+    return
+}
+
 #------------------------------------------------------------------
 parse_args ()
 {
+    # var defaults.
+    execution_host="${NCAR_HOST}"
+    command_file="./cmdfile"
+    threads_per_step=1
+    max_start_delay=0
+    unset ppn
+    unset steps_per_node
+    unset cpu_type
+    unset mem_limit
+    unset queue
     unset args_for_pbs
+
+    # if the user specifies -q|--queue, and the target requires cross-submission, that will
+    # influence our defaults.
+    parse_queue_args ${@}
+    set_defaults ${execution_host}
 
     while [ ${#} -gt 0 ] ; do
         # check the first argument
         case ${1} in
+
+            "-J"|*"select"*)
+                echo "ERROR: \"${1}\"is not allowed as an argument, rather is inferred from the number of command file steps and other arguments."
+                echo
+                echo "Run ${0} --help for additional details"
+                exit 1
+                ;;
 
             "-h"|"--help")
                 usage
@@ -79,7 +151,7 @@ parse_args ()
                 exit 1
                 ;;
 
-            "--queue")
+            "-q"|"--queue")
                 shift
                 queue=${1}
                 shift
@@ -104,8 +176,20 @@ parse_args ()
                 ;;
 
             "--mem"|"--memory")
-                shift;
-                memlimit=${1}
+                shift
+                mem_limit=${1}
+                shift
+                ;;
+
+            "--cpu_type")
+                shift
+                cpu_type=${1}
+                shift
+                ;;
+
+            "--random_start_delay")
+                shift
+                max_start_delay=${1}
                 shift
                 ;;
 
@@ -120,46 +204,24 @@ parse_args ()
         esac
     done
 
+    # Consistency
+    [ ${threads_per_step} -gt ${ppn} ] && ppn=${threads_per_step}
+    [ -z "${steps_per_node}" ] && steps_per_node=$(( ${ppn} / ${threads_per_step} ))
+    [ $(( ${steps_per_node}*${threads_per_step})) -gt ${max_ppn} ] && { echo "steps_per_node*threads_per_step>${max_ppn}, inconsistent inputs?!"; usage; exit 1; }
+    [ $(( ${steps_per_node}*${threads_per_step})) -gt ${ppn} ] && ppn=$(( ${steps_per_node}*${threads_per_step}))
+
+    [ ${ppn} -gt ${max_ppn} ] && { echo "ppn>${max_ppn}m inconsistent inputs?!"; usage; exit 1; }
+
     return
 }
 
 #------------------------------------------------------------------
-# var defaults.
-command_file="./cmdfile"
-threads_per_step=1
-
-case "${NCAR_HOST}" in
-    "derecho")
-        ppn=128
-        memlimit="235G"
-        queue="main"
-        ;;
-    "casper")
-        # use less than full nodes on Casper.
-        ppn=8
-        memlimit="80G"
-        queue="casper"
-        ;;
-    "cheyenne")
-        ppn=36
-        memlimit="50G"
-        queue="regular"
-        ;;
-    *)
-        echo "ERROR: Unrecognized NCAR_HOST=${NCAR_HOST}"
-        exit 1
-esac
-
-# more defaults that depend on case above
-steps_per_node=${ppn}
-
-# finally, allow the user specify options
-parse_args $@
+# defaults & user arguments
+parse_args ${@}
 
 #------------------------------------------------------------------
 # error & consistency checking
 [ -r ${command_file} ] || { echo "Cannot locate requested command file: ${command_file}"; exit 1; }
-[ $((${steps_per_node}*${threads_per_step})) -le ${ppn} ] || { echo "ERROR: ${steps_per_node}*${threads_per_step} > ${ppn}, check inputs!"; exit 1; }
 
 #------------------------------------------------------------------
 # main execution follows...
@@ -167,21 +229,35 @@ n_total_steps=$(count_non_comment_lines ${command_file})
 
 echo "Found n_total_steps=${n_total_steps} in ${command_file}"
 
+# when the command file has fewer steps than our ${steps_per_node}, adjust.
+[ ${n_total_steps} -lt ${steps_per_node} ] && steps_per_node=${n_total_steps}
+[ ${n_total_steps} -lt ${ppn} ]            && ppn=${n_total_steps}
+
 #------------------------------------------------------------------
 njobs=$(( ${n_total_steps} / ${steps_per_node} ))
- # evenly divisible?
+# evenly divisible?
 [ $(( ${njobs} * ${steps_per_node} )) -eq ${n_total_steps} ] && njobs=$((${njobs}-1))
-echo "Running $((${njobs}+1)) jobs with ${steps_per_node} steps / node on NCAR resource ${NCAR_HOST}"
 
+echo " -> ppn=${ppn}"
+echo " -> threads_per_step=${threads_per_step}"
+echo " -> steps_per_node=${steps_per_node}"
+echo " -> n_total_steps=${n_total_steps}"
+echo " -> njobs=${njobs}"
+
+echo "Running $((${njobs}+1)) jobs with ${steps_per_node} steps / node on NCAR resource ${execution_host}"
 
 # hackery: PBS will not allow us to submit a 1-entry array.
 # for that case we will be submitted without a -J arg
 [ ${njobs} -gt 0 ] && args_for_pbs="-J 0-${njobs} ${args_for_pbs}"
 
-ss="1:ncpus=${ppn}:mpiprocs=${steps_per_node}:ompthreads=${threads_per_step}:mem=${memlimit}"
+ss="1:ncpus=${ppn}:mpiprocs=${steps_per_node}:ompthreads=${threads_per_step}:mem=${mem_limit}"
+
+# append cpu_type to select statement, if set.
+[ -z "${cpu_type+x}" ] || args_for_pbs="-l cpu_type=${cpu_type} ${args_for_pbs}"
 
 set -x
-qsub -v command_file="${command_file}" \
-     -q ${queue} -l select=${ss} \
+qsub -v command_file="${command_file}",max_start_delay="${max_start_delay}" \
+     -q ${queue} \
+     -l select=${ss} \
      ${args_for_pbs} \
      ${launch_cf_PBS_script}
