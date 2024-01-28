@@ -1,26 +1,35 @@
-#!/bin/bash
+#!/bin/bash -l
 #PBS -q main
 #PBS -j oe
-#PBS -o fasteddy_job.log
+#PBS -o wrf_container_job.log
 #PBS -l walltime=02:00:00
-#PBS -l select=6:ncpus=64:mpiprocs=4:ngpus=4
+#PBS -l select=2:ncpus=128:mpiprocs=4
 
 module load ncarenv/23.09
-module load apptainer gcc cuda || exit 1
+module purge
+module load apptainer gcc cray-mpich || exit 1
 module list
 
-nnodes=$(cat ${PBS_NODEFILE} | sort | uniq | wc -l)
-nranks=$(cat ${PBS_NODEFILE} | sort | wc -l)
-nranks_per_node=$((${nranks} / ${nnodes}))
 
-container_image="./rocky8-openhpc-fasteddy.sif"
+if [ ! -z ${PBS_NODEFILE+x} ]; then
+    nnodes=$(cat ${PBS_NODEFILE} | sort | uniq | wc -l)
+    nranks=$(cat ${PBS_NODEFILE} | sort | wc -l)
+    nranks_per_node=$((${nranks} / ${nnodes}))
+fi
 
+container_image="./rocky8-wrf.sif"
+#container_image="./centos7-wrf.sif"
+container_exe="/container/wrf-chem-4.4.2/wrf.exe"
+
+# examine dynamic libraries before & after host MPI injection
+echo -e "\nldd, container native:"
 singularity \
     --quiet \
     exec \
     ${container_image} \
-    ldd /opt/local/FastEddy-model/SRC/FEMAIN/FastEddy
+    ldd ${container_exe}
 
+echo -e "\nldd, host MPI:"
 singularity \
     --quiet \
     exec \
@@ -31,17 +40,15 @@ singularity \
     --bind /opt/cray \
     --bind /usr/lib64:/host/lib64 \
     --env LD_LIBRARY_PATH=${CRAY_MPICH_DIR}/lib-abi-mpich:/opt/cray/pe/lib64:${LD_LIBRARY_PATH}:/host/lib64 \
-    --env LD_PRELOAD=/opt/cray/pe/mpich/${CRAY_MPICH_VERSION}/gtl/lib/libmpi_gtl_cuda.so.0 \
     ${container_image} \
-    ldd /opt/local/FastEddy-model/SRC/FEMAIN/FastEddy
+    ldd ${container_exe}
 
+[ -z ${PBS_NODEFILE+x} ] && exit 0
 
-
-echo "# --> BEGIN execution"; tstart=$(date +%s)
+  echo "# --> BEGIN execution"; tstart=$(date +%s)
 
 mpiexec \
     --np ${nranks} --ppn ${nranks_per_node} --no-transfer \
-    set_gpu_rank \
     singularity \
     --quiet \
     exec \
@@ -52,13 +59,9 @@ mpiexec \
     --bind /opt/cray \
     --bind /usr/lib64:/host/lib64 \
     --env LD_LIBRARY_PATH=${CRAY_MPICH_DIR}/lib-abi-mpich:/opt/cray/pe/lib64:${LD_LIBRARY_PATH}:/host/lib64 \
-    --env LD_PRELOAD=/opt/cray/pe/mpich/${CRAY_MPICH_VERSION}/gtl/lib/libmpi_gtl_cuda.so.0 \
-    --env MPICH_GPU_SUPPORT_ENABLED=1 \
-    --env MPICH_GPU_MANAGED_MEMORY_SUPPORT_ENABLED=1 \
     --env MPICH_SMP_SINGLE_COPY_MODE=NONE \
     ${container_image} \
-    /opt/local/FastEddy-model/SRC/FEMAIN/FastEddy \
-    ./Example02_CBL.in
+    ${container_exe}
 
 echo "# --> END execution"
 echo $(($(date +%s)-${tstart})) " elapsed seconds; $(date)"

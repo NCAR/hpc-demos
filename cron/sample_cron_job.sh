@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 
 #--------------------------------------------------------------
 LOCK="${HOME}/.my_cron_job.lock"
@@ -19,8 +19,6 @@ another_instance()
 lockfile -r 5 -l 3600 "${LOCK}" || another_instance
 trap remove_lock EXIT
 
-
-
 #--------------------------------------------------------------
 # logging:  Print status to standard out, and redirect also to our
 # specified cron_logdir.
@@ -34,20 +32,22 @@ echo -e "[${timestamp}]: Running ${0} on $(hostname)\n\tfrom $(pwd)\n\tscriptdir
 
 
 #--------------------------------------------------------------
+echo "PATH=${PATH}"
+
 ssh derecho "hostname && uptime" 2>/dev/null || echo "Cannot ssh to Derecho."
 ssh casper "hostname && uptime"  2>/dev/null || echo "Cannot ssh to Casper."
 
 echo "My Casper Jobs:"
 qstat -a casper@casper-pbs || echo "cannot connect to Casper PBS"
 
-echo "Casper node status:"
-pbsnodes -aSj -s casper-pbs || echo "cannot connect to Casper PBS"
+#echo "Casper node status:"
+#pbsnodes -aSj -s casper-pbs || echo "cannot connect to Casper PBS"
 
 echo "My Derecho Jobs:"
 qstat -a main@desched1 || echo "cannot connect to Derecho PBS"
 
-echo "Derecho node status:"
-pbsnodes -aSj -s desched1 || echo "cannot connect to Derecho PBS"
+#echo "Derecho node status:"
+#pbsnodes -aSj -s desched1 || echo "cannot connect to Derecho PBS"
 
 #--------------------------------------------------------------
 # go to desired directory, exit on failure:

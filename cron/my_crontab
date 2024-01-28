@@ -6,3 +6,6 @@
 
 # run my daily cron jobs at 00:45 am.
 45 0 * * * cd /glade/u/home/benkirk/my_cron/ && mkdir -p logs && ./daily.sh &>> logs/daily.log
+
+# run my daily cron jobs at 01:30 am.
+30 1 * * * cd /glade/work/benkirk/my_cron_job/ && ./cron_driver.sh &>> cron.log
