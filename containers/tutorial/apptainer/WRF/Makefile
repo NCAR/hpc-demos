@@ -1,4 +1,5 @@
-container_image ?= centos7-wrf.sif
+#container_image ?= centos7-wrf.sif
+container_image ?= ncar-derecho-wrf.sif
 
 run: run_wrf_container.sh $(container_image) check-env
 	rm -rf ./output

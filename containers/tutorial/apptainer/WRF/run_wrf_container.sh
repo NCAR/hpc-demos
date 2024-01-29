@@ -17,8 +17,9 @@ if [ ! -z ${PBS_NODEFILE+x} ]; then
     nranks_per_node=$((${nranks} / ${nnodes}))
 fi
 
-container_image="./rocky8-wrf.sif"
+#container_image="./rocky8-wrf.sif"
 #container_image="./centos7-wrf.sif"
+container_image="ncar-derecho-wrf.sif"
 container_exe="/container/wrf-chem-4.4.2/wrf.exe"
 
 # examine dynamic libraries before & after host MPI injection
