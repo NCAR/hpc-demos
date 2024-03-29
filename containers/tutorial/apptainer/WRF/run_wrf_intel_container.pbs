@@ -10,7 +10,6 @@ module purge
 module load apptainer intel cray-mpich || exit 1
 module list
 
-
 if [ ! -z ${PBS_NODEFILE+x} ]; then
     nnodes=$(cat ${PBS_NODEFILE} | sort | uniq | wc -l)
     nranks=$(cat ${PBS_NODEFILE} | sort | wc -l)
@@ -35,8 +34,7 @@ echo -e "\nldd, host MPI:"
 singularity \
     --quiet \
     exec \
-    --bind ${SCRATCH} \
-    --bind ${WORK} \
+    --bind /glade \
     --pwd $(pwd) \
     --bind /run \
     --bind /opt/cray \
@@ -47,15 +45,14 @@ singularity \
 
 [ -z ${PBS_NODEFILE+x} ] && exit 0
 
-  echo "# --> BEGIN execution"; tstart=$(date +%s)
+echo "# --> BEGIN execution"; tstart=$(date +%s)
 
 mpiexec \
     --np ${nranks} --ppn ${nranks_per_node} --no-transfer \
     singularity \
     --quiet \
     exec \
-    --bind ${SCRATCH} \
-    --bind ${WORK} \
+    --bind /glade \
     --pwd $(pwd) \
     --bind /run \
     --bind /opt/cray \
