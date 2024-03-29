@@ -1,0 +1,56 @@
+# This TEMPLATED singulatrity Definition file will
+# be used to construct specific instances based on a make rule,
+# see for example "PLACEHOLDER_IMG_NAME" in Makefile
+
+Bootstrap: docker
+From: benjaminkirk/<PLACEHOLDER_IMG_NAME>:latest
+
+%post
+    echo "No-Op placeholder: Hello, world!"
+    echo "source /container/config_env.sh" >> ${SINGULARITY_ENVIRONMENT}
+
+%runscript
+
+    cat <<EOF
+Welcome to "$(basename ${SINGULARITY_NAME} .sif)"
+
+#----------------------------------------------------------
+# MPI Compilers & Version Details:
+#----------------------------------------------------------
+$(which mpicc)
+$(mpicc --version)
+
+$(which mpif90)
+$(mpif90 --version)
+
+$(mpichversion)
+
+#----------------------------------------------------------
+# WRF/WPS-Centric Environment:
+#----------------------------------------------------------
+JASPERINC=${JASPERINC}
+JASPERLIB=${JASPERLIB}
+HDF5=${HDF5}
+NETCDF=${NETCDF}
+
+FLEX_LIB_DIR=${FLEX_LIB_DIR}
+YACC=${YACC}
+LIB_LOCAL=${LIB_LOCAL}
+#----------------------------------------------------------
+
+#----------------------------------------------------------
+# Pre-compiled executables:
+#----------------------------------------------------------
+$(find /container/w*-*/ -name "*.exe" | sort)
+#----------------------------------------------------------
+EOF
+    # start bash, resulting in an interactive shell.
+    # but ignore any user ~/.profile etc... which would be coming
+    # from the host
+    /bin/bash --noprofile --norc
+
+
+
+# Local Variables:
+# mode: sh
+# End:

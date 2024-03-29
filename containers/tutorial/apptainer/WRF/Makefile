@@ -1,15 +1,24 @@
-#container_image ?= centos7-wrf.sif
-container_image ?= ncar-derecho-wrf.sif
+container_image ?= ncar-derecho-wrf-gcc.sif
 
-run: run_wrf_container.sh $(container_image) check-env
-	rm -rf ./output
-	mkdir -p ./output
-	qsub -A $${PBS_ACCOUNT} $<
+all: ncar-derecho-wrf-gcc.sif \
+     ncar-derecho-wrf-intel.sif \
+     ncar-derecho-wrf-nvhpc.sif
 
-check-env:
-ifndef PBS_ACCOUNT
-	$(error PBS_ACCOUNT is undefined, try PBS_ACCOUNT=<my_account> $(MAKE) $(MAKECMDGOALS))
-endif
+run-shell: $(container_image)
+	@echo "Running interactive shell inside $<"
+	module load apptainer ; \
+	singularity \
+	  --quiet \
+	  shell \
+	  --cleanenv \
+	  --pwd $$(pwd) \
+	  --bind /glade \
+	  ./$<
+
+# check-env:
+# ifndef PBS_ACCOUNT
+# 	$(error PBS_ACCOUNT is undefined, try PBS_ACCOUNT=<my_account> $(MAKE) $(MAKECMDGOALS))
+# endif
 
 clean:
 	rm -f *~
@@ -17,23 +26,19 @@ clean:
 pristine:
 	git clean -xdf -e "*.sif"
 
-%.sif:
-	module load apptainer ; \
-        TMPDIR=/var/tmp/$${USER}-singularity ; \
-        mkdir -p $${TMPDIR} ; \
-        singularity pull $@ docker://benjaminkirk/$(patsubst %.sif,%,$@):latest
+# '$*' matches the '%' part, see https://www.gnu.org/software/make/manual/html_node/Automatic-Variables.html
+%.def: Deffile
+	@echo "Constructing $@ from $<"
+	@rm -f $@
+	@cp $< $@.tmp
+	@sed -i 's/<PLACEHOLDER_IMG_NAME>/$*/g' $@.tmp
+	@mv $@{.tmp,}
 
-
-run-shell: $(container_image)
+%.sif: %.def
+	@echo "Constructing $@ from $<"
 	module load apptainer ; \
-	singularity \
-	  --quiet \
-	  shell \
-	  --cleanenv \
-	  --writable-tmpfs \
-	  --pwd $$(pwd) \
-	  --bind /glade/u/home \
-	  --bind /glade/work \
-	  --bind /glade/campaign \
-	  --bind /glade/derecho/scratch \
-	  ./$<
+        export TMPDIR=/var/tmp/$${USER}-singularity/ ; \
+	export APPTAINER_TMPDIR=/var/tmp/ ; \
+        export APPTAINER_CACHEDIR=${WORK}/.apptainer-cache/ ; \
+        mkdir -p $${TMPDIR} $${APPTAINER_TMPDIR} $${APPTAINER_CACHEDIR} ; \
+        singularity build --force $@ $<
