@@ -39,10 +39,13 @@ LIB_LOCAL=${LIB_LOCAL}
 #----------------------------------------------------------
 
 #----------------------------------------------------------
-# Pre-compiled executables:
+# Pre-compiled executables: (#$(wc -l /container/exe_list.txt | awk '{print $1}'))
 #----------------------------------------------------------
 $(find /container/w*-*/ -name "*.exe" | sort)
 #----------------------------------------------------------
+
+--> Type 'exit' to leave this containerized environment.
+
 EOF
     # start bash, resulting in an interactive shell.
     # but ignore any user ~/.profile etc... which would be coming

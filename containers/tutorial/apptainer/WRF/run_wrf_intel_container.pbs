@@ -19,14 +19,11 @@ fi
 container_image="ncar-derecho-wrf-intel.sif"
 container_exe="/container/wrf-4.5.2/wrf.exe"
 
-INTEL_LD_LIBRARY_PATH="/container/intel/compiler/2022.2.1/linux/lib:/container/intel/compiler/2022.2.1/linux/lib/x64:/container/intel/compiler/2022.2.1/linux/compiler/lib/intel64_lin"
-
 # examine dynamic libraries before & after host MPI injection
 echo -e "\nldd, container native:"
 singularity \
     --quiet \
     exec \
-    --env LD_LIBRARY_PATH=${INTEL_LD_LIBRARY_PATH} \
     ${container_image} \
     ldd ${container_exe}
 
@@ -39,7 +36,7 @@ singularity \
     --bind /run \
     --bind /opt/cray \
     --bind /usr/lib64:/host/usr/lib64 \
-    --env LD_LIBRARY_PATH=${CRAY_MPICH_DIR}/lib-abi-mpich:/opt/cray/pe/lib64:${LD_LIBRARY_PATH}:${INTEL_LD_LIBRARY_PATH}:/host/usr/lib64 \
+    --env LD_LIBRARY_PATH=${CRAY_MPICH_DIR}/lib-abi-mpich:/opt/cray/pe/lib64:${LD_LIBRARY_PATH}:/host/usr/lib64 \
     ${container_image} \
     ldd ${container_exe}
 
@@ -57,7 +54,7 @@ mpiexec \
     --bind /run \
     --bind /opt/cray \
     --bind /usr/lib64:/host/usr/lib64 \
-    --env LD_LIBRARY_PATH=${CRAY_MPICH_DIR}/lib-abi-mpich:/opt/cray/pe/lib64:${LD_LIBRARY_PATH}:${INTEL_LD_LIBRARY_PATH}:/host/usr/lib64 \
+    --env LD_LIBRARY_PATH=${CRAY_MPICH_DIR}/lib-abi-mpich:/opt/cray/pe/lib64:${LD_LIBRARY_PATH}:/host/usr/lib64 \
     --env MPICH_SMP_SINGLE_COPY_MODE=NONE \
     ${container_image} \
     ${container_exe}
