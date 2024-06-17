@@ -1,0 +1,32 @@
+# This TEMPLATED singulatrity Definition file will
+# be used to construct specific instances based on a make rule,
+# see for example "PLACEHOLDER_IMG_NAME" in Makefile
+
+Bootstrap: docker
+From: esmf/esmf-build-release:8.6.1
+
+%post
+    # set up 'esmf_env.sh' so other users can source.  Need the module definition as well.
+    echo "source /etc/profile.d/modules.sh && echo && echo" > /home/dev/esmf_env.sh
+    cat /home/dev/.bashrc >> /home/dev/esmf_env.sh
+
+%runscript
+
+    cat <<EOF
+#----------------------------------------------------------
+Welcome to "$(basename ${SINGULARITY_NAME} .sif)"
+#----------------------------------------------------------
+
+--> Type 'exit' to leave this containerized environment.
+
+EOF
+    # start bash, resulting in an interactive shell.
+    # but ignore any user ~/.profile etc... which would be coming
+    # from the host
+    /bin/bash --noprofile --init-file /home/dev/esmf_env.sh
+
+
+
+# Local Variables:
+# mode: sh
+# End:
