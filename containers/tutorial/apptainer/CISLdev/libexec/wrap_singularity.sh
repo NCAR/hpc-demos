@@ -5,7 +5,7 @@
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 selfdir="$(dirname $(readlink -f ${BASH_SOURCE[0]}))"
 #----------------------------------------------------------------------------
-set -x
+
 topdir="$(pwd)"
 
 cd ${selfdir} || exit 1
