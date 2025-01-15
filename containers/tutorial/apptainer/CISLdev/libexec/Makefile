@@ -20,11 +20,6 @@ run-shell: $(container_image)
 	  ./$< ; \
 	  rm -rf $${workdir}
 
-# check-env:
-# ifndef PBS_ACCOUNT
-# 	$(error PBS_ACCOUNT is undefined, try PBS_ACCOUNT=<my_account> $(MAKE) $(MAKECMDGOALS))
-# endif
-
 clean:
 	rm -f *~
 
@@ -39,21 +34,20 @@ pristine:
 	@sed -i 's/<PLACEHOLDER_IMG_NAME>/$*/g' $@.tmp
 	@mv $@{.tmp,}
 
-%.sif: %.def
+%.sif: %.def Makefile
 	@echo "Constructing $@ from $<"
 	module load apptainer ; \
-        export TMPDIR=/var/tmp/$${USER}-singularity/ ; \
+	export TMPDIR=/var/tmp/$${USER}-singularity/ ; \
 	export APPTAINER_TMPDIR=/var/tmp/ ; \
-        export APPTAINER_CACHEDIR=${WORK}/.apptainer-cache/ ; \
-        mkdir -p $${TMPDIR} $${APPTAINER_TMPDIR} $${APPTAINER_CACHEDIR} ; \
+	export APPTAINER_CACHEDIR=${WORK}/.apptainer-cache/ ; \
 	workdir="$$(mktemp -d)" ; \
-	mkdir -p $${workdir}/{tmp,var/tmp} ; \
-        singularity \
+	mkdir -p $${TMPDIR} $${APPTAINER_TMPDIR} $${APPTAINER_CACHEDIR} $${workdir}/{tmp,var/tmp} ; \
+	singularity \
 	  build \
-          --bind $${workdir}/tmp:/tmp \
-          --bind $${workdir}/var/tmp:/var/tmp \
+	  --bind $${workdir}/tmp:/tmp \
+	  --bind $${workdir}/var/tmp:/var/tmp \
 	  --force \
 	  $@ $< ; \
 	rm -rf $${workdir}
 	@ls -ltrh $@
-	@ln -sf wrap_singularity.sh $*
+	@cd ../bin/ && ln -sf ../libexec/wrap_singularity.sh $*
