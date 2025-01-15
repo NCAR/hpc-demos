@@ -1,0 +1,31 @@
+# This TEMPLATED singulatrity Definition file will
+# be used to construct specific instances based on a make rule,
+# see for example "PLACEHOLDER_IMG_NAME" in Makefile
+
+Bootstrap: docker
+From: benjaminkirk/<PLACEHOLDER_IMG_NAME>:latest
+
+%post
+    echo "source /container/config_env.sh" >> ${SINGULARITY_ENVIRONMENT}
+    echo "export PS1=\"<PLACEHOLDER_IMG_NAME>> \"" >> ${SINGULARITY_ENVIRONMENT}
+
+%runscript
+
+    cat <<EOF
+Welcome to "$(basename ${SINGULARITY_NAME} .sif)"
+
+See /container/config_env.sh for a listing of the installed environment.
+
+--> Type 'exit' to leave this containerized environment.
+
+EOF
+    # start bash, resulting in an interactive shell.
+    # but ignore any user ~/.profile etc... which would be coming
+    # from the host
+    /bin/bash --noprofile --norc
+
+
+
+# Local Variables:
+# mode: sh
+# End:

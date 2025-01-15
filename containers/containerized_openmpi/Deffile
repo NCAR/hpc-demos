@@ -1,0 +1,93 @@
+# This TEMPLATED singulatrity Definition file will
+# be used to construct specific instances based on a make rule,
+# see for example "PLACEHOLDER_IMG_NAME" in Makefile
+
+Bootstrap: docker
+From: benjaminkirk/<PLACEHOLDER_IMG_NAME>:latest
+
+
+
+%post
+    echo "Hello, world!"
+
+
+    # override lmod.sh to remove EUID logic, this fails Singularity initialization
+    # and is only meaningful when the user has access to root anyway.
+    cat <<EOF >/etc/profile.d/lmod.sh
+#!/bin/sh
+# -*- shell-script -*-
+########################################################################
+#  This is the system wide source file for setting up
+#  modules:
+#
+########################################################################
+
+# NOOP if running under known resource manager
+if [ -n "\$SLURM_NODELIST" ] || [ -n "\$PBS_NODEFILE" ]; then
+     return
+fi
+
+export LMOD_SETTARG_CMD=":"
+export LMOD_FULL_SETTARG_SUPPORT=no
+export LMOD_COLORIZE=no
+export LMOD_PREPEND_BLOCK=normal
+
+export MODULEPATH=/opt/ohpc/pub/modulefiles
+
+export BASH_ENV=/opt/ohpc/admin/lmod/lmod/init/bash
+
+# Initialize modules system
+. /opt/ohpc/admin/lmod/lmod/init/bash >/dev/null
+
+# Load baseline OpenHPC environment
+module try-add ohpc
+EOF
+
+
+    cat <<EOF >/container/config_env.sh
+for rcfile in /etc/profile.d/*.sh; do
+    source \${rcfile}
+done
+unset rcfile
+export PS1="OpenHPC-env> "
+EOF
+
+
+    echo "source /container/config_env.sh" >> ${SINGULARITY_ENVIRONMENT}
+
+
+
+%runscript
+
+    cat <<EOF
+Welcome to "$(basename ${SINGULARITY_NAME} .sif)"
+
+#----------------------------------------------------------
+# Container Modules:
+#----------------------------------------------------------
+$(source /container/config_env.sh && module avail && module list)
+#----------------------------------------------------------
+
+#----------------------------------------------------------
+# MPI Compilers & Version Details:
+#----------------------------------------------------------
+$(which mpicc)
+$(mpicc --version)
+
+$(which mpif90)
+$(mpif90 --version)
+#----------------------------------------------------------
+
+--> Type 'exit' to leave this containerized environment.
+
+EOF
+    # start bash, resulting in an interactive shell.
+    # but ignore any user ~/.profile etc... which would be coming
+    # from the host
+    /bin/bash --noprofile --rcfile /container/config_env.sh
+
+
+
+# Local Variables:
+# mode: sh
+# End:
