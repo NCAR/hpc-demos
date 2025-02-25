@@ -14,8 +14,17 @@ type module >/dev/null 2>&1 || . /etc/profile.d/z00_modules.sh
 module load apptainer || exit 1
 
 case "${0}" in
+    *"gcc-dbg-mpich"*)
+        container_img="ncar-derecho-wrf-dbg-gcc-mpich"
+        ;;
+    *"gcc-dbg-openmpi"*)
+        container_img="ncar-derecho-wrf-dbg-gcc-openmpi"
+        ;;
     *"gcc"*)
         container_img="ncar-derecho-wrf-gcc"
+        ;;
+    *"intel-dbg"*)
+        container_img="ncar-derecho-wrf-dbg-intel"
         ;;
     *"intel"*)
         container_img="ncar-derecho-wrf-intel"

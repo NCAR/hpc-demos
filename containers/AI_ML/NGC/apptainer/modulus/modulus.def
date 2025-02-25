@@ -1,12 +1,12 @@
 Bootstrap: docker
-From: nvcr.io/nvidia/modulus/modulus:23.09
+From: nvcr.io/nvidia/modulus/modulus:24.07
 
 %post
     # update pip
     python -m pip install --upgrade pip
 
     # use pip to install additional packages needed for examples later
-    pip install warp-lang
+    pip install warp-lang mlflow
 
     # Remove cuda compat layer (https://github.com/NVIDIA/nvidia-docker/issues/1256)
     # note that the source container attempts to do this at run-time, but that will
