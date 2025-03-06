@@ -18,6 +18,15 @@ omp_cmdfile: Makefile
 	done
 	mv $@.tmp $@
 
+hello_world_openmp: hello_world_openmp.C
+	g++ -O2 -o $@ $< -fopenmp
+
+hw_cmdfile: hello_world_openmp Makefile
+	echo "# sample cmdfile for an OpenMP application" > $@.tmp
+	for i in $$(seq 1 6); do \
+	  echo "./$< # step $${i}" >> $@.tmp ; \
+	done
+	mv $@.tmp $@
 
 check_derecho: gs_openmp omp_cmdfile
 	echo && echo && $(launch_cf) -A $(account) -l walltime=0:10:00 # check defaults
