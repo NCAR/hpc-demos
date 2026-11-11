@@ -28,7 +28,7 @@ PASSES="${PASSES:-200}"      # to change it, export PASSES in config_env.sh
 steps_per_node=8             # the barrier waits for this many steps
 
 # PBS_JOBID is unique to each array index, so each node gets its own directory
-sync="/dev/shm/numa-python.${PBS_JOBID:-manual}"
+sync="/dev/shm/numa-python-advanced.${PBS_JOBID:-manual}"
 mkdir -p "${sync}"
 
 # the month, e.g. 202001 from ...ll025sc.2020010100_2020013123.nc

@@ -1,4 +1,10 @@
-# NUMA Placement for Threaded Python
+# NUMA Placement for Threaded Python: Advanced
+
+This is the full version of [`../numa-python`](../numa-python). That
+example compares only no placement with `numactl` binding; this one also
+tries first touch, interleaved memory and per-thread pinning, and looks at
+why they help less. Start with `../numa-python` if you only want the
+pattern to use.
 
 [`../netcdf-postproc`](../netcdf-postproc) found that pinning made no
 difference to independent, single-threaded steps. This example tests the case
@@ -85,7 +91,7 @@ together for 20 seconds, so they compete for memory bandwidth throughout.
 | `8 free`       | none. The main thread reads the array, so all of it lands in one domain |
 | `8 touch`      | none, but each thread copies its own band, so its pages start where it is |
 | `8 bind`       | `numactl --cpunodebind=d --membind=d`: threads and memory in domain *d* |
-| `8 bind+pin`   | as `bind`, with each thread pinned to its own core             |
+| `8 bind+pin`   | as `bind`, plus `--pin-threads`: each thread calls `os.sched_setaffinity` to fix itself to one core of domain *d* |
 | `8 interleave` | `numactl --cpunodebind=d --interleave=all`: memory spread over all 8 domains |
 | `1 free`       | one process alone on the node, unpinned                        |
 | `1 bind`       | one process alone, bound to domain 0                           |
@@ -233,6 +239,9 @@ placement:
 ./run_step.sh unpinned .../e5.oper.an.sfc.128_167_2t.ll025sc.2019010100_2019013123.nc
 numactl --cpunodebind=0 --membind=0 ./run_step.sh pinned .../e5.oper.an.sfc.128_167_2t.ll025sc.2019010100_2019013123.nc
 ```
+
+Here "pinned" means the trial's `bind`, numactl only: no thread is pinned
+to a core of its own.
 
 Two things differ from the trial:
 
