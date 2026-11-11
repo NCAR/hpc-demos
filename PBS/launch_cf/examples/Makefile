@@ -21,7 +21,8 @@ PYTHON   ?= python3
 launch_cf ?= launch_cf
 
 # Each example directory holds its own cmdfile and submission script.
-EXAMPLES := derecho-640procs thread-placement netcdf-postproc numa-python
+EXAMPLES := derecho-640procs thread-placement netcdf-postproc numa-python \
+            numa-python-advanced
 
 # Command files that can be generated with no further input.  netcdf-postproc
 # is deliberately absent: its command files list the data files make_data.sh
@@ -64,11 +65,15 @@ netcdf-data:
 	cd netcdf-postproc && ./gen_cmdfile_postproc.sh ./cmdfile
 	cd netcdf-postproc && ./gen_cmdfile_postproc.sh ./cmdfile.pinned pin
 
-# Both command files of the NUMA example.  They list ERA5 files on GLADE, so
+# Both command files of the NUMA examples.  They list ERA5 files on GLADE, so
 # they can only be generated on Derecho; see numa-python/gen_cmdfile_numa.sh.
 numa-cmdfiles:
 	cd numa-python && ./gen_cmdfile_numa.sh
-	cd numa-python && ./gen_cmdfile_numa.sh pin
+	cd numa-python && ./gen_cmdfile_numa.sh bind
+
+numa-advanced-cmdfiles:
+	cd numa-python-advanced && ./gen_cmdfile_numa.sh
+	cd numa-python-advanced && ./gen_cmdfile_numa.sh pin
 
 submit: all
 	cd derecho-640procs && ./submit_launch_cf.sh
@@ -98,9 +103,10 @@ clobber: clean
 	rm -f $(addsuffix /launch_cf.numactl.log,$(EXAMPLES))
 	rm -f $(addsuffix /launch_cf.numactl_bind.log,$(EXAMPLES))
 	rm -f $(addsuffix /launch_cf.pinned.log,$(EXAMPLES))
+	rm -f $(addsuffix /launch_cf.bind.log,$(EXAMPLES))
 	rm -rf netcdf-postproc/out.unpinned netcdf-postproc/out.pinned netcdf-postproc/out
 	@echo "(netcdf-postproc/data left in place; delete it by hand to re-slice)"
 	rm -f $(addsuffix /launch_cf.*.pbs,$(EXAMPLES))
 	rm -f $(addsuffix /launch_cf.o*,$(EXAMPLES))
 
-.PHONY: all cmdfiles netcdf-data numa-cmdfiles submit dryrun csv clean clobber
+.PHONY: all cmdfiles netcdf-data numa-cmdfiles numa-advanced-cmdfiles submit dryrun csv clean clobber
