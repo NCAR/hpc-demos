@@ -44,8 +44,18 @@ param="128_167_2t"           # 2 m temperature
 # "pin" is a keyword wherever it appears; any other argument is the output file
 pin=""
 output=""
+usage() {
+    sed -n '/^# Usage:/,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+}
 for arg in "$@"; do
-    if [ "${arg}" = "pin" ]; then
+    if [ "${arg}" = "-h" ] || [ "${arg}" = "--help" ]; then
+        usage
+        exit 0
+    elif [ "${arg}" != "${arg#-}" ]; then
+        echo "ERROR: unknown option '${arg}'"
+        usage
+        exit 1
+    elif [ "${arg}" = "pin" ]; then
         pin="yes"
     elif [ -z "${output}" ]; then
         output="${arg}"

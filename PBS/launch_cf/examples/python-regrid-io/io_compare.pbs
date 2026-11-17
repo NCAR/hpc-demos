@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# One whole develop node: calc_anomaly_numba_io.py (h5py, serial decompression)
+# against calc_anomaly_numba_pario.py (parallel decompression), one run at a
+# time, over a range of thread counts.
+# Submit with:  qsub -A $PBS_ACCOUNT io_compare.pbs
+#
+#PBS -N io_compare
+#PBS -q develop
+#PBS -l select=1:ncpus=128:mem=235G
+#PBS -l walltime=0:20:00
+#PBS -j oe
+
+cd "${PBS_O_WORKDIR}"
+
+module load conda
+conda activate npl-2026a
+export NUMBA_THREADING_LAYER=omp
+
+echo "Node: $(hostname)  Env: ${CONDA_DEFAULT_ENV}  Layer: ${NUMBA_THREADING_LAYER}"
+
+TIME_FMT="Elapsed time: %E | Max RSS: %M KB | \
+Waits (Voluntary context switches): %w | Involuntary context switches: %c"
+
+# Warm-up, not part of the results: compiles the Numba cache and reads the
+# file once, so every timed run starts from the same cache state.
+echo "== warm-up (discarded)"
+OMP_NUM_THREADS=8 ./calc_anomaly_numba_io.py > /dev/null
+OMP_NUM_THREADS=8 ./calc_anomaly_numba_pario.py > /dev/null
+
+for nt in 1 2 4 8 16; do
+    echo "== h5py, threads ${nt}"
+    OMP_NUM_THREADS=${nt} /usr/bin/time -f "${TIME_FMT}" \
+        ./calc_anomaly_numba_io.py --member "${nt}"
+    echo "== pario, threads ${nt}, io-threads ${nt}"
+    OMP_NUM_THREADS=${nt} /usr/bin/time -f "${TIME_FMT}" \
+        ./calc_anomaly_numba_pario.py --member "${nt}"
+done
+
+echo "== pario, threads 1, io-threads 8"
+OMP_NUM_THREADS=1 /usr/bin/time -f "${TIME_FMT}" \
+    ./calc_anomaly_numba_pario.py --member 1 --io-threads 8

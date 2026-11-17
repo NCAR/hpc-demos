@@ -1,0 +1,4 @@
+# Numba writes its compiled-code cache here (cache=True in calc_anomaly_numba.py)
+__pycache__/
+# command files written for each run
+cmdfiles/

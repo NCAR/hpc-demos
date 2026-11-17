@@ -16,3 +16,6 @@ launch_cf.*.pbs
 *.log
 # parse_steps.py output
 *.csv
+
+# PBS job output, <jobname>.o<jobid>[.<array index>]
+*.o[0-9]*

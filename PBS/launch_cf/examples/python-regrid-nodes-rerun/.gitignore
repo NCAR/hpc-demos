@@ -1,0 +1,10 @@
+# Numba writes its compiled-code cache here (cache=True in calc_anomaly_numba.py)
+__pycache__/
+# command files written by launch_cf --rerun
+*.rerun
+# job scripts written by dryrun_nodes.sh
+dryrun/
+# command files written by generate_runs.sh
+cmdfile.short
+cmdfile.medium
+cmdfile.long
