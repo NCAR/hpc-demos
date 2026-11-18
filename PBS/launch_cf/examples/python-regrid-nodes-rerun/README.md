@@ -173,7 +173,44 @@ The 1.44 node-hours were charged about 37 core-hours, where `main` would
 have charged 185.
 
 Whether a job loses nodes depends on how busy Derecho is while it runs, so
-yours may. The next section shows what `--rerun` does then.
+yours may. On 17 November 2026, a smaller test did. Job 8219627 ran the 32
+steps of `cmdfile.medium` on 2 preempt nodes. PBS took back node 0 after 82
+seconds, before any step had finished (its exit status, 271, is 256 + 15:
+ended by `SIGTERM`). Node 1 started two minutes later, and was ended with
+`qdel` a minute into its steps (see the next section). `--rerun` found all
+32 steps cut short:
+
+```
+$ ./rerun_preempt.sh 8219627
+Job 8219627: 32 of 32 steps did not succeed:
+  step 1 of job 8219627: cut short: subjob 0 stopped while it ran
+  step 2 of job 8219627: cut short: subjob 0 stopped while it ran
+  ...
+  ... and 22 more
+Wrote ./cmdfile.medium.8219627.rerun, to submit as the command file.
+```
+
+and submitted them as job 8219691, again on the preempt queue. It waited two
+and a half hours, then ran on 2 nodes, and every step succeeded:
+
+```
+$ ./rerun_preempt.sh 8219691
+All 32 steps of job 8219691 succeeded; there is nothing to rerun.
+```
+
+Run from any other directory, `rerun_preempt.sh` stops and says where the job
+was submitted from, while PBS still has the job's history (on 17 November it
+no longer had the jobs of 13 November):
+
+```
+$ cd /some/other/dir
+$ .../python-regrid-nodes-rerun/rerun_preempt.sh 8219627
+ERROR: no PBS output files of job 8219627 (*.o8219627*) in /some/other/dir
+       Job 8219627 was submitted from .../python-regrid-nodes-rerun:
+       run launch_cf --rerun from there, e.g. after "cd .../python-regrid-nodes-rerun".
+```
+
+The next section shows how to try `--rerun` without waiting for a preemption.
 
 ### Try `--rerun` without waiting for a preemption
 
@@ -218,16 +255,21 @@ $ ./submit_develop_rerun.sh 8179905
 All 16 steps of job 8179905 succeeded; there is nothing to rerun.
 ```
 
-Note that the rerun's step logs are numbered by their place in the rerun
-command file: `stdout-8179905.desched1/step-00001.out` holds the output of
-member 17, which was step 17 of the first job. Each step's own output says
-which member it is.
+Each rerun step keeps its step number from the first job, given by the
+`step=16; ` at the start of its line. Its log is named for that number too:
+with the current `launch_cf`, step 17 of the first job writes
+`stdout-<rerun job id>.desched1/step-00017.out`, wherever it is in the rerun
+command file. Steps that use `${step}`, e.g. to name their output, write the
+same files as before. (Job 8179905 ran with an earlier `launch_cf`, which
+named the logs by place in the rerun command file.)
 
 ## Using this with your own work
 
 - **Run `--rerun` from the directory you submitted from.** It reads the job's
   PBS output files (`launch_cf.o<job id>.<element>`) and its step logs there.
   Don't delete them, or edit the command file, until everything has run.
+  Run from elsewhere, it names that directory, if PBS still has the job's
+  history.
 - **Make steps safe to run twice.** A step cut short may have written part of
   its output. When it reruns, it should start over or carry on from where it
   stopped, not trip over what it left behind.
