@@ -139,3 +139,22 @@ three nodes at a time, cost 2% less. Averaged over the three runs, one node
 is the cheapest layout in 11 of 12 series. The exception is pario bound at 8
 threads, whose 18 Nov 1-node run shared the file system. Four nodes is the
 most expensive layout in all 12 series.
+
+Two bumps in the three-run means for pario bound at 2 threads come from
+single 18 Nov runs, not from the layout:
+
+* **Start-up, 1 node × 8 waves**, does not keep falling with fewer nodes.
+  The 18 Nov run's first wave took 22.6 s to start, against 8.6 and 9.5 s in
+  the other two runs (later waves 1.4–1.9 s). Without it, the 1-node layout is
+  about 0.04 node-s per file, against 0.065 for 2 nodes × 4 waves.
+* **Waiting for data** rises from 2 × 4 (0.095 node-s per file) to 1 × 8
+  (0.103). The 18 Nov 1-node run (job 8226958) waited 10–13 s per step for
+  its first six waves, then 3–6 s, against 2–5 s in the 17 Nov run. It ran
+  outside the window when 20 nodes read at once, so campaign storage was
+  probably busy with other users' reads. The 17 Nov runs follow the trend
+  (0.061 against 0.089); the 16 Nov ones are within noise (0.093 against
+  0.082).
+
+A 1-node run reads during one stretch of time, so one slow patch of storage
+moves its whole result. The mean of three runs still moves by 0.02–0.05
+node-s per file.
