@@ -31,7 +31,7 @@ departures from a climate normal, not from the same day's mean.
 | `submit_study.sh` | `./submit_study.sh <climo\|climoh5\|io\|pario\|keep> <bound\|unbound> <threads> <nodes> <waves> <first file>`: packs nodes with analysis steps, one file per step |
 | `run_io_step.sh` | one analysis step, timed (`climo`: pario reader, `climoh5`: h5py reader) |
 | `solo.pbs` | one step alone on a develop node, both readers, 1–128 threads, uncached then cached |
-| `run_study.sh` | the 16 Nov study as one chain of jobs: `solo.pbs`, one packed node, then nodes × waves × placement |
+| `run_study.sh` | the 16 Nov study (repeated 17 Nov) as one chain of jobs: `solo.pbs`, one packed node, then nodes × waves × placement |
 | `summarize_study.py` | one line per finished `submit_study.sh` run |
 | `era5_t_files.txt` | the ERA5 files to analyse, none in the climatology years: 4 April 1971 to 1979 (lines 0–3193, as first written), then 1940 to March 1971, 1980–1990 and 2021–2025 |
 | `make_filelist.sh` | writes a file list for other months |
@@ -92,16 +92,50 @@ succeeded) compares the two readers of `calc_anomaly_numba_climo.py`:
   | ---------------- | -: | -: | -: | -: | -: |
   | pario (`climo`)  | **0.36** | 0.37 | 0.40 | 0.49 | 0.61 |
   | h5py (`climoh5`) | 0.49 | 0.43 | 0.67 | 1.07 | – |
+  | pario, 17 Nov    | **0.33** | 0.35 | 0.36 | 0.51 | 0.62 |
+  | h5py, 17 Nov     | 0.48 | 0.47 | 0.62 | 1.06 | – |
 
   Packed, the readers are much closer than alone: one step per core already
   decompresses 128 files in parallel. Steps slow down 2–4× against running
   alone; the memory-bound compute slows most (about 10× at 1 thread).
 * **Nodes against waves, 512 files per case** (4 × t, 2 × 2t, 1 × 4t waves at
   t threads), bound and unbound: one node is the cheapest layout in 11 of 12
-  series; bound beats unbound most at 1 thread (0.36 against 0.46); 4 nodes ×
-  1 wave cost 0.47 for both placements. 4-node jobs in `main` waited up to 23
+  series (12 of 12 in the repeat); bound beats unbound most at 1 thread (0.36
+  against 0.46, repeat 0.33 against 0.43). 4-node jobs in `main` waited up to 23
   minutes for their last node, while 1- and 2-node `develop` jobs started
   within seconds.
 
 The full write-up is the "ERA5 one-pass studies" report.
 
+### Repeat (17 Nov 2026)
+
+`./run_study.sh 19984` ran the whole chain again (jobs 8218722–8218766, about
+430 core-hours), plus the three earlier pario runs and two more `solo.pbs`
+runs. Lines 20451 onward of `era5_t_files.txt` are the 19,700 files whose
+access time showed no read for at least 24 hours; the list as of 16 Nov is
+`era5_t_files.20261116.txt`.
+
+* Node-seconds per file changed by a median of 7% across the 39 runs: 5% on 1
+  or 2 nodes (largest 18%), 11% on 4 nodes (largest 25%).
+* Unshuffle and compute hardly change between runs. Start-up changes most: a
+  packed first wave's steps took 2–27 s to start. Waiting for data comes next.
+* Every ranking held: pario against h5py packed, one node against more,
+  bound against unbound for pario at 1–4 threads. Two claims did not: h5py at
+  2 threads against 1 (0.47 against 0.48 in the repeat), and 4 nodes × 1 wave
+  costing the same bound or unbound (0.43 against 0.57).
+* One step alone repeats within 0.7 s at every thread count (four runs).
+
+### Study C a third time (18 Nov 2026)
+
+All 36 study C runs again (jobs 8226947–8226983, about 380 core-hours,
+`logs/run_studyC.20261118.log`), from lines 40000–58431 of
+`era5_t_files.txt`. The appended files are the least recently read, each
+last read at least 16 hours earlier. These runs were submitted at once, not
+chained. The 12 four-node `main` jobs started together, alongside the
+`develop` jobs, and for 12 minutes up to 20 nodes read at once. The 17 runs in
+that window cost 17% more than the mean of 16 and 17 Nov: pario 28% more,
+almost all of it waiting for data, and h5py 2% more. The 19 later runs, two or
+three nodes at a time, cost 2% less. Averaged over the three runs, one node
+is the cheapest layout in 11 of 12 series. The exception is pario bound at 8
+threads, whose 18 Nov 1-node run shared the file system. Four nodes is the
+most expensive layout in all 12 series.
