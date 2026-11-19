@@ -28,8 +28,8 @@ These runs used Derecho CPU nodes between 2026-10-01 and 2026-10-02.
 
 ### The steps are I/O-bound
 
-**First run.** 128 files of `e5.oper.fc.sfc.minmax`, parameter `mxtpr`, about
-475 MB per file, default region, unpinned:
+**First run.** This run processed 128 files of `e5.oper.fc.sfc.minmax`,
+parameter `mxtpr`, about 475 MB per file, over the default region, unpinned:
 
 - Every operation used about 0.2 GB at peak (largest 0.21 GB), so a full node
   of 42 steps needed about 23 GB.
@@ -40,16 +40,16 @@ These runs used Derecho CPU nodes between 2026-10-01 and 2026-10-02.
   filesystem.
 
 **The file layout sets the cost.** The inputs are stored in chunks of
-`1, 12, 721, 1440`: each chunk is one whole global field, compressed at deflate
-level 1. Reading any region decompresses the whole field, so every operation
+`1, 12, 721, 1440`. Each chunk is one whole global field, compressed at
+deflate level 1. Reading any region decompresses the whole field, so every operation
 pays to read and decompress the entire file whatever region it keeps. Reading
 from GLADE is a large share of that cost. In the default-region memory check
 (step 3 above), the first operation takes about twice as long as the other two
 (2.7 s against 1.3 s), because it reads the file from GLADE and the other two
 find it already in memory.
 
-**Global region, pinned against unpinned.** 126 files of
-`e5.oper.fc.sfc.meanflux`, parameter `msror`, whole globe:
+**Global region, pinned against unpinned.** These runs processed 126 files
+of `e5.oper.fc.sfc.meanflux`, parameter `msror`, over the whole globe:
 
 - Measured on the login node, the steps needed 0.39, 0.30 and 1.60 GB. `ncks`
   holds the whole region of a variable at once, while `ncra` holds one record.
@@ -58,8 +58,9 @@ find it already in memory.
   writing out and recompressing the whole field. In the memory check, its time
   rose from 1.3 s for the default region to between 2.8 and 5.6 s for the
   globe; the login-node timings are noisy.
-- Pinned and unpinned runs gave the same step times (the `compare_runs.sh` output in [README.md](README.md#4-submit-gather-compare)): a mean of
-  18.53 s against 18.56 s.
+- Pinned and unpinned runs gave the same step times, a mean of 18.53 s
+  against 18.56 s (see the `compare_runs.sh` output in
+  [README.md](README.md#4-submit-gather-compare)).
 
 ### Pinning worked, but had nothing to fix
 
@@ -68,7 +69,7 @@ was allowed only its step's three cores, with each of the 42 blocks used
 three times across the run's three nodes. Every unpinned process was allowed
 `0-255`.
 
-That also shows the node layout. A Derecho CPU node has **256 logical CPUs:
+That also shows the node layout. A Derecho CPU node has **256 logical CPUs,
 128 physical cores with two hardware threads each (SMT)**. The second hardware
 thread of core *i* is CPU *i*+128.
 
@@ -80,12 +81,13 @@ is further evidence that the steps spend their time waiting on GLADE.
 
 ### Without the filesystem: SMT adds little, pinning slightly hurts
 
-[`smt_test.sh`](smt_test.sh) removes the filesystem: every process recompresses
+[`smt_test.sh`](smt_test.sh) removes the filesystem. Every process recompresses
 the same file at deflate level 6 (5 of its 30 records), reading and writing
 `/dev/shm`. That leaves CPU-bound zlib work. It runs 128 processes (one per
 physical core) and 256 (two per core), each pinned (`taskset -c i`) and
 unpinned. A warm-up run comes first, and each case repeats three times in a
-rotated order. Averages of the three repeats, one compute node:
+rotated order. The table gives averages of the three repeats on one compute
+node:
 
 | placement           | 128 processes | 256 processes | 256 vs 128 |
 | ------------------- | ------------- | ------------- | ---------- |
@@ -99,7 +101,7 @@ rotated order. Averages of the three repeats, one compute node:
   second hardware thread has little left to use.
 - **Simple pinning was slightly slower in every repeat.** The ranges don't
   overlap (unpinned 33.8–34.2, pinned 31.9–32.7 files/s at 128). It wasn't
-  caused by a few busy cores: the pinned processes' median time was slower,
+  caused by a few busy cores. The pinned processes' median time was slower,
   and the slowest one ran on a different CPU each time. For independent
   single-threaded processes, the Linux scheduler did at least as well as
   pinning each one to a core. We didn't identify the cause of the small

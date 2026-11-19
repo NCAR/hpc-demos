@@ -34,7 +34,8 @@ OMP_NUM_THREADS=8 numactl --cpunodebind=0 --membind=0 ./run_step.sh 1 40
 ```
 
 The last number is how many iterations the step computes, which sets how long
-it takes: about 0.05 seconds each when a node runs 16 steps at once.
+it takes. Each iteration takes about 0.05 seconds when a node runs 16 steps at
+once.
 [`generate_runs.sh`](generate_runs.sh) writes three command files:
 
 | command file     | steps | iterations | each step takes | used for |
@@ -87,7 +88,7 @@ costs nothing:
 Things to notice:
 
 - **Every node is a whole node**, charged in full, even one that runs 7 steps
-  on 56 of its 128 cores. Pick a node count that fills the nodes: here 1 or 2.
+  on 56 of its 128 cores. Pick a node count that fills the nodes, which here is 1 or 2.
 - **More steps than fit don't need more nodes.** `--nodes 1` runs all 32 on
   one node, in two waves. It takes longer, but uses no more node time, and a
   1-node job often starts sooner.
@@ -117,7 +118,7 @@ Derecho's `preempt` queue (see the
   of 128;
 - **can take a node back** when a job from another queue needs it. The job
   then gets a signal to stop, and is killed 10 minutes later if it hasn't. On
-  Derecho, PBS then deletes it: it is not put back in the queue to run again.
+  Derecho, PBS then deletes it rather than putting it back in the queue.
 
 Losing a node in the middle of a job sounds bad, but `launch_cf` jobs suit
 the preempt queue well:
@@ -136,10 +137,11 @@ up is knowing when it will finish.
 ./submit_preempt.sh
 ```
 
-runs the 256 steps of `cmdfile.long` on 4 nodes: 64 steps per node, in 4
+runs the 256 steps of `cmdfile.long` on 4 nodes, with 64 steps per node in 4
 waves of 16. A step takes about 5 minutes, so each node needs about 22
 minutes, and the job asks for an hour. The whole job uses about 1.4
-node-hours: about 37 core-hours on the preempt queue, against 185 on `main`.
+node-hours. That costs about 37 core-hours on the preempt queue, against 185
+on `main`.
 
 When the job has finished (`qstat` no longer lists it), see what's left:
 
@@ -152,13 +154,13 @@ lists the steps that didn't succeed and why, writes them to
 `cmdfile.long.<job id>.rerun`, and submits that, again on the preempt queue.
 Repeat with each new job id until there is nothing left to rerun.
 
-`rerun_preempt.sh` uses `--steps-per-node 16`: whatever number of steps is
-left, each node runs 16, all at once, on as many nodes as that needs.
+`rerun_preempt.sh` uses `--steps-per-node 16`. Whatever number of steps is
+left, each node runs 16 of them at once, on as many nodes as that needs.
 `--rerun` does not take the earlier job's options, so you choose the layout
 again for what's left.
 
 What happens depends on how busy Derecho is. In our runs, a 4-node job of
-`cmdfile.long` waited an hour and a half to start, then ran untouched: all
+`cmdfile.long` waited an hour and a half to start, then ran untouched. All
 256 steps succeeded, for about 37 core-hours instead of 185. A smaller 2-node
 test lost a node to preemption after 82 seconds, and one rerun finished every
 step. [DETAILS.md](DETAILS.md) has both runs, with `--rerun`'s output.
@@ -209,11 +211,11 @@ All 16 steps of job 8179905 succeeded; there is nothing to rerun.
 ```
 
 Each rerun step keeps its step number from the first job, given by the
-`step=16; ` at the start of its line. Its log is named for that number too:
-with the current `launch_cf`, step 17 of the first job writes
+`step=16; ` at the start of its line. Its log is named for that number too.
+With the current `launch_cf`, step 17 of the first job writes
 `stdout-<rerun job id>.desched1/step-00017.out`, wherever it is in the rerun
-command file. Steps that use `${step}`, e.g. to name their output, write the
-same files as before. (Job 8179905 ran with an earlier `launch_cf`, which
+command file. Steps that use `${step}`, for example to name their output,
+write the same files as before. (Job 8179905 ran with an earlier `launch_cf`, which
 named the logs by place in the rerun command file.)
 
 ## Using this with your own work
@@ -230,12 +232,12 @@ named the logs by place in the rerun command file.)
   running. Steps of minutes rather than hours keep that loss small.
 - **A step can use its 10 minutes.** PBS signals the job with `SIGTERM` 10
   minutes before killing it. As written, these steps simply stop. A step that
-  catches `SIGTERM` can save its work first: see [`../../../preempt`](../../../preempt)
+  catches `SIGTERM` can save its work first. See [`../../../preempt`](../../../preempt)
   for examples in C, C++, Bash and Python.
 - **Keep reruns balanced.** Each rerun step keeps its line from the command
   file, including its `numactl` domain. The steps a node was running when it
-  was taken back are spread evenly over the domains, so this works out here;
-  check it if you pick steps to rerun by other means.
+  was taken back are spread evenly over the domains, so this works out here.
+  Check it if you pick steps to rerun by other means.
 - **Use the preempt queue when you can wait.** For work you need by a
-  deadline, use `main`; for work that can finish whenever, `preempt` costs a
+  deadline, use `main`. For work that can finish whenever, `preempt` costs a
   fifth as much.

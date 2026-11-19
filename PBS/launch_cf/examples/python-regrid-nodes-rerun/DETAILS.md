@@ -23,8 +23,8 @@ have charged 185.
 Whether a job loses nodes depends on how busy Derecho is while it runs. On
 17 November 2026, a smaller test did. Job 8219627 ran the 32
 steps of `cmdfile.medium` on 2 preempt nodes. PBS took back node 0 after 82
-seconds, before any step had finished (its exit status, 271, is 256 + 15:
-ended by `SIGTERM`). Node 1 started two minutes later, and was ended with
+seconds, before any step had finished. Its exit status, 271, is 256 + 15,
+which means it was ended by `SIGTERM`. Node 1 started two minutes later, and was ended with
 `qdel` a minute into its steps (see [Try `--rerun` without waiting for a preemption](README.md#try---rerun-without-waiting-for-a-preemption)). `--rerun` found all
 32 steps cut short:
 

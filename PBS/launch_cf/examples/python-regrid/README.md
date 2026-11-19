@@ -8,10 +8,10 @@ compares two ways of running them:
   threads run and where their memory goes.
 - **bound:** each step is kept inside one NUMA domain with `numactl`.
 
-It runs each of these two ways: on 2 nodes, 16 steps per node, and on 1 node,
-16 steps at a time.
+It runs each of these in two layouts. One uses 2 nodes with 16 steps per
+node, and the other uses 1 node that runs 16 steps at a time.
 
-In short: binding made the calculation **about 1.25 times faster on average,
+In short, binding made the calculation **about 1.25 times faster on average,
 and the slowest step 1.45 times faster**, and every bound step ran at the same
 speed. But each step is short, and on a fresh node starting Python takes
 longer than calculating, so the jobs as a whole show the difference only
@@ -157,9 +157,9 @@ Elapsed time: 0:10.08 | Max RSS: 889544 KB | Major faults: 6 | Swaps: 0 | ...
 - **Starting Python is a big part of a short step.** On a fresh node, a step
   took 9 to 11 seconds, mostly before computing; once the node had Python and
   Numba in memory, 3 to 4. Placement can only speed up the computing.
-- **Waves used one node instead of two**, and no more node-seconds (15
-  against 15 bound, 17 against 25 unbound): the second wave's steps started
-  on a node that already had Python loaded.
+- **Waves used one node instead of two**, and no more node-seconds: 15
+  against 15 bound, and 17 against 25 unbound. The second wave's steps
+  started on a node that already had Python loaded.
 
 The run-by-run results are in [DETAILS.md](DETAILS.md).
 

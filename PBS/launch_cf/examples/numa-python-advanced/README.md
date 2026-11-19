@@ -8,18 +8,19 @@ pattern to use.
 
 [`../netcdf-postproc`](../netcdf-postproc) found that pinning made no
 difference to independent, single-threaded steps. This example tests the case
-that README pointed to instead: **one process whose threads share memory**,
-doing work fast enough that memory bandwidth limits its speed.
+that README pointed to instead. That case is **one process whose threads
+share memory**, doing work fast enough that memory bandwidth limits its
+speed.
 
 It has two parts:
 
 - **A single-node trial.** `numa_test.sh` measures whether placement changes
-  the speed of this kind of work on a Derecho node. It does: binding each
+  the speed of this kind of work on a Derecho node. It does. Binding each
   process to a NUMA domain gives a full node 1.6 times the throughput (see
   [DETAILS.md](DETAILS.md#results)).
-- **A `launch_cf` version.** Real steps, one month of ERA5 each, eight to a
-  node, with an unpinned and a pinned command file to compare, as in
-  [`../thread-placement`](../thread-placement). Pinned, each node's
+- **A `launch_cf` version.** This part runs real steps, one month of ERA5
+  each and eight to a node. As in [`../thread-placement`](../thread-placement),
+  it compares an unpinned and a pinned command file. Pinned, each node's
   computing finished 2.2 times sooner (see [DETAILS.md](DETAILS.md#launch_cf-results)).
 
 ## The computation in brief
@@ -51,7 +52,7 @@ together for 20 seconds, so they compete for memory bandwidth throughout.
 | `1 free`       | one process alone on the node, unpinned                        |
 | `1 bind`       | one process alone, bound to domain 0                           |
 
-The last two show why the comparison needs a full node: a process alone has
+The last two show why the comparison needs a full node. A process alone has
 the node's memory system to itself, so its placement hardly matters.
 
 ## Running it
@@ -75,9 +76,9 @@ automatic NUMA balancing is on; see [DETAILS.md](DETAILS.md#automatic-numa-balan
 
 ## The `launch_cf` version
 
-The same computation as real `launch_cf` steps: each step reads one month of
-ERA5 2 m temperature and computes its mean and standard deviation with 16
-threads. `launch_cf --nthreads 16 --steps-per-node 8` puts eight steps on a
+This version runs the same computation as real `launch_cf` steps. Each step
+reads one month of ERA5 2 m temperature and computes its mean and standard
+deviation with 16 threads. `launch_cf --nthreads 16 --steps-per-node 8` puts eight steps on a
 node, one per NUMA domain's worth of cores. Two command files differ only in
 placement:
 
@@ -86,8 +87,8 @@ placement:
 numactl --cpunodebind=0 --membind=0 ./run_step.sh pinned .../e5.oper.an.sfc.128_167_2t.ll025sc.2019010100_2019013123.nc
 ```
 
-Here "pinned" means the trial's `bind`, numactl only: no thread is pinned
-to a core of its own.
+Here "pinned" means the trial's `bind`, which uses `numactl` only. No thread
+is pinned to a core of its own.
 
 Two things differ from the trial:
 
@@ -137,7 +138,7 @@ Each step writes one report line; [DETAILS.md](DETAILS.md#reading-a-steps-output
 - Measure placement on a full node. A single process on an idle node shows
   no difference.
 - In the `launch_cf` version, pinned steps ran twice as fast as unpinned
-  ones, and each node finished computing 2.2 times sooner: a step with a
+  ones, and each node finished computing 2.2 times sooner. A step with a
   fixed amount of work is only as fast as its slowest thread.
 
 Every measurement, and why the other placements fall short, is in

@@ -1,8 +1,8 @@
 # Threads, Job Arrays and Waves: Measurements
 
-This file holds the measurements behind [README.md](README.md): the full
-sweep with `--sync-waves`, and the earlier version that placed bound steps
-with lock files ("slots") instead.
+This file holds the measurements behind [README.md](README.md). It covers the
+full sweep with `--sync-waves`, and an earlier version that placed bound
+steps with lock files ("slots") instead.
 
 All runs used Derecho CPU nodes (128 cores, 8 NUMA domains of 16 cores), the
 `npl-2026a` conda environment and `ITERS=400`. Each configuration ran once.
@@ -31,8 +31,8 @@ computed from its output in `stdout-<job id>/`.
 
 With synchronized waves, the time a node spends waiting for each wave's
 slowest step shows up as lower `fill` and higher `imbal`. `launch_cf`
-reports times to the second, so these columns need steps much longer than a
-second to mean much: use `ITERS=400`.
+reports times to the second, so these columns mean little unless steps last
+much longer than a second. Use `ITERS=400`.
 
 ## The sweep with `--sync-waves`
 
@@ -41,7 +41,7 @@ Jobs 8169324–8169347 (2, 4 and 8 threads, 12 Nov 2026) and 8176064–8176071
 
 ### Cost: node-seconds per step
 
-Columns are nodes × waves per node; lower is better.
+The columns are nodes × waves per node, and lower is better.
 
 | threads | placement | 8 × 1 | 4 × 2 | 2 × 4 | 1 × 8 |
 | ------- | --------- | ----: | ----: | ----: | ----: |
@@ -68,7 +68,7 @@ node-seconds, so bound runs come within 3 to 15% of it.
 
 - **The node's memory is the limit.** Each step's bandwidth grows with its
   threads, and the node as a whole moves about 320 GB/s in every case.
-- **Bound steps take nearly the same time**: within a run, 80% of steps fall
+- **Bound steps take nearly the same time.** Within a run, 80% of steps fall
   within about 3% of the median, and the slowest is at most 2.4% over it. So
   waiting for each wave's slowest step costs 1 to 3% of node time.
 - **Start-up is the rest.** When 512 two-thread steps start together on 8
@@ -94,20 +94,20 @@ node-seconds, so bound runs come within 3 to 15% of it.
 
 (1-thread node GB/s is estimated as 128 × the mean step's GB/s.)
 
-Unbound steps vary a lot: the slowest step of a run takes up to 3.3 times
-the mean. More waves do even this out at the node level: since `launch_cf` starts
-a step as soon as any step ends, short steps fill in behind long ones, and
-at 8 waves each node is 96–97% busy. But steps that start on a busy node
+Unbound steps vary a lot, and the slowest step of a run takes up to 3.3
+times the mean. More waves even this out at the node level. Since
+`launch_cf` starts a step as soon as any step ends, short steps fill in
+behind long ones, and at 8 waves each node is 96–97% busy. But steps that start on a busy node
 compute more slowly than steps that start together, so at 4 and 8 threads
 the time gained is lost again. Only at 1 and 2 threads did waves pay off,
-mostly because the 1-wave runs started so badly: 512 or 1024 steps starting
-together left their nodes 19–27% idle.
+mostly because the 1-wave runs started so badly. When 512 or 1024 steps
+started together, their nodes sat 19–27% idle.
 
 ### Wall time is not cost
 
 At 2 to 8 threads, 8 waves on one node took 4 to 5.5 times as long as
-1 wave on 8 nodes, but used no more node time. What Derecho charges is node time (core-hours), not
-wall time. And an 8-node array does not always run on 8 nodes at once: PBS
+1 wave on 8 nodes, but used no more node time. Derecho charges for node time (core-hours), not
+wall time. Also, an 8-node array does not always run on 8 nodes at once. PBS
 may run its indices one after another on the same node, as it did with both
 indices of the bound 8-thread, 4-wave run.
 
@@ -116,25 +116,26 @@ indices of the bound 8-thread, 4-wave run.
 All 24 jobs of 12 Nov were submitted within two seconds. The 4- and 8-node
 arrays in `main` waited 4 to 8 minutes for nodes. The 1- and 2-node jobs in
 `develop` waited up to 38 minutes, but only because `develop` runs at most
-2 nodes of one user's jobs at once: PBS's `eligible_time` for them was 2 to
-7 seconds. So this sweep says nothing about whether arrays start sooner;
+2 nodes of one user's jobs at once. PBS's `eligible_time` for them was 2 to
+7 seconds. So this sweep says nothing about whether arrays start sooner.
 [`../python-regrid-io-arrays`](../python-regrid-io-arrays) looks at that.
 
 ### First tests
 
-`./submit_runs.sh 8 32 2` (jobs 8169093, 8169094, the default 40 iterations)
-checked that it works: all 32 steps of each ran, and the bound run's PBS
-output shows `launch_cf` starting wave 2 only after wave 1 had finished.
+`./submit_runs.sh 8 32 2` (jobs 8169093 and 8169094, with the default 40
+iterations) checked that the scripts work. All 32 steps of each run ran, and
+the bound run's PBS output shows `launch_cf` starting wave 2 only after wave
+1 had finished.
 
 ## Without synchronized waves: slots
 
 Before `launch_cf` had `--sync-waves`, this sweep was run with a different
-way of keeping bound steps on free domains (the `python-regrid-sweep-slotctl`
-example, last in
+way of keeping bound steps on free domains. That was the
+`python-regrid-sweep-slotctl` example, last in
 [commit 4c89271](https://github.com/NCAR/hpc-demos/tree/4c89271/PBS/launch_cf/examples/python-regrid-sweep-slotctl)).
-Waves were not synchronized: `launch_cf` started a new step as soon as any
-finished. The command file said only `bound`, and each step chose its domain
-as it started:
+Its waves were not synchronized, so `launch_cf` started a new step as soon
+as any step finished. The command file said only `bound`, and each step chose
+its domain as it started:
 
 - `run_step.sh` took the first free **slot** of its node's `STEPS_AT_ONCE`
   slots, and ran under `numactl` in domain `slot mod 8`.
@@ -142,17 +143,17 @@ as it started:
   long as the step ran. When a step ended its lock was released, and the next
   step to start on that node took that slot, and so that domain.
 
-This worked: in every bound run the most steps running in one domain at once
-was exactly its share, and every node kept its cores 98–99% busy, with
-imbalance 1.01–1.03. But it put the placement logic in every step's script.
-`launch_cf` knows which slot each step fills, and could pass it to the step
-instead; that is proposed in
+This worked. In every bound run, the most steps running in one domain at
+once was exactly that domain's share, and every node kept its cores 98–99%
+busy, with imbalance 1.01–1.03. But it put the placement logic in every
+step's script. `launch_cf` knows which slot each step fills, and it could
+pass the slot to the step instead. That is proposed in
 [NCAR/pbstools#17](https://github.com/NCAR/pbstools/issues/17).
 
 ### Results with slots
 
-Jobs 8166254–8166278 (2, 4 and 8 threads, `ITERS=400`), all 2,688 steps
-finished. Node-seconds per step:
+Jobs 8166254–8166278 ran 2, 4 and 8 threads with `ITERS=400`, and all
+2,688 steps finished. The table gives node-seconds per step:
 
 | threads | placement | 8 × 1 | 4 × 2 | 2 × 4 | 1 × 8 |
 | ------- | --------- | ----: | ----: | ----: | ----: |
@@ -171,9 +172,9 @@ by starting each step the moment a domain frees up. Slots should gain more
 for steps whose times vary, such as steps that read files; that has not been
 measured.
 
-The unbound runs repeat the pattern above: steps vary by up to 2.6 times
+The unbound runs repeat the pattern above. Steps vary by up to 2.6 times
 the mean, waves raise `fill` to 97%, and only at 2 threads did waves pay off
-clearly (2.49 to 1.56).
+clearly, cutting the cost from 2.49 to 1.56.
 
 ### A start-up trap
 

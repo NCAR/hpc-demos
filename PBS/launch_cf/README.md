@@ -28,13 +28,13 @@ version.  Changes to the tool itself, and the tests that cover them, belong in
 
 # How `launch_cf` Runs a Command File
 
-`launch_cf` reads a command file, one command per line. Each line is a
-**step**: a program run on its own, independent of the others. `launch_cf`
-submits a PBS **job array**, one sub-job per node, and gives each node a
-block of consecutive steps:
+`launch_cf` reads a command file with one command per line. Each line is a
+**step**, a program that runs on its own, independently of the others.
+`launch_cf` submits a PBS **job array** with one sub-job per node, and it
+gives each node a block of consecutive steps:
 
 - **Steps at once.** A node runs up to `#CPUS / #Threads/step` steps at the
-  same time: for example, 128 single-threaded steps on a Derecho node, or
+  same time. For example, a Derecho node runs 128 single-threaded steps, or
   32 steps of 4 threads.
 - **Steps per node.** By default each node gets as many steps as it runs at
   once, so every step starts right away and the job array has as many nodes
@@ -66,8 +66,8 @@ Consider a command file as follows.
 Blank lines and lines starting with `#` are not steps. Each step runs in a
 bash shell, from the directory you submitted from, so all commands should be
 either in your `PATH` or given relative to that directory. A step can be any
-shell command line: it can set environment variables, or start with a
-command such as `numactl` that runs the rest of the line.
+shell command line. For example, it can set environment variables, or start
+with a command such as `numactl` that runs the rest of the line.
 
 Then,
 
@@ -84,8 +84,8 @@ Launch the commands listed in `./cmdfile`, one per CPU:
 launch_cf -A PBS_ACCOUNT -l walltime=1:00:00
 ```
 
-Launch the OpenMP-threaded commands listed in `./omp_cmdfile`, 32 steps of 4
-threads per node:
+Launch the OpenMP-threaded commands listed in `./omp_cmdfile`, running 32
+steps of 4 threads on each node:
 ```
 launch_cf -A PBS_ACCOUNT -l walltime=1:00:00 --nthreads 4 --steps-per-node 32 ./omp_cmdfile
 ```
@@ -95,7 +95,7 @@ Spread the commands in `./cmdfile` over 4 nodes, however many there are:
 launch_cf -A PBS_ACCOUNT -l walltime=4:00:00 --nodes 4 ./cmdfile
 ```
 
-Give each node 3 waves of 32 four-thread steps, 96 steps per node:
+Give each node 3 waves of 32 four-thread steps, which is 96 steps per node:
 ```
 launch_cf -A PBS_ACCOUNT -l walltime=3:00:00 --nthreads 4 --waves 3 ./omp_cmdfile
 ```
@@ -111,13 +111,13 @@ be set with the options described in [Optional Parameters](#optional-parameters)
 
 # Output
 
-`launch_cf` writes, in the directory you submitted from:
+`launch_cf` writes two kinds of output in the directory you submitted from:
 
 - `stdout-<job id>/step-NNNNN.out`: the standard output and standard error of
   step *NNNNN*, numbered from 1 in command-file order;
 - `<job name>.o<job id>.<index>` (`launch_cf.o...` by default; no `.<index>`
-  for a one-node job): one log per node, recording when each step was launched, when it finished and its
-  exit status, and how long the node took.
+  for a one-node job): one log per node, recording when each step was
+  launched, when it finished and its exit status, and how long the node took.
 
 ```
 [2026-11-13 15:26:18 MST] launching step 00001: OMP_NUM_THREADS=8 numactl --cpunodebind=0 --membind=0 ./run_step.sh 1 40
@@ -128,19 +128,20 @@ Done: PBS_ARRAY_INDEX=0 took 7 seconds, finished on Fri Nov 13 03:26:24 PM MST 2
 ```
 
 **Check the steps, not just the node logs.** A node reports `Done` once its
-steps have ended, whether or not they succeeded; the exit status of each step
+steps have ended, whether or not they succeeded. The exit status of each step
 is in its `finished` line. `--rerun` uses these lines to find the steps that
 did not succeed.
 
-A step can use the shell variable `${step}`, its line number counting from
-0, for example to name its own output files.
+A step can use the shell variable `${step}`, which holds its line number
+counting from 0. For example, a step can use it to name its own output
+files.
 
 # Waves
 
-Each node runs up to `#CPUS / #Threads/step` steps at once. Give a node more
-steps than that, and it runs them in waves: when a running step finishes,
-the node starts the next. Three options set how many steps each node gets;
-give at most one of them:
+Each node runs up to `#CPUS / #Threads/step` steps at once. If you give a
+node more steps than that, it runs them in waves. When a running step
+finishes, the node starts the next one. Three options set how many steps each
+node gets, and you can give at most one of them:
 
 | option | each node gets |
 | ------ | -------------- |
@@ -148,11 +149,11 @@ give at most one of them:
 | `--nodes N` | the steps divided over *N* nodes, rounded up |
 | `--waves N` | *N* times as many steps as it runs at once |
 
-For example, 512 single-threaded steps run on 4 nodes with no options (128
-steps per node, all at once), or on 1 node in 4 waves with `--nodes 1` or
-`--waves 4`.
+For example, with no options, 512 single-threaded steps run on 4 nodes, 128
+steps per node, all at once. With `--nodes 1` or `--waves 4`, they run on 1
+node in 4 waves.
 
-Why use waves:
+Waves have three advantages:
 
 - **Fewer nodes, the same node time.** One node running 4 waves uses about as
   much node time as 4 nodes running 1, and a small job often starts sooner.
@@ -163,27 +164,28 @@ Why use waves:
 - **Fewer array sub-jobs.** A very large command file needs fewer nodes, so
   a smaller job array.
 
-What to watch:
+Keep two things in mind when you use waves:
 
-- **Walltime.** A node is busy for about as long as its waves in a row.
-  `launch_cf` reports how many waves each node will run, but cannot know how
-  long the steps take; ask for enough walltime for all of them.
+- **Walltime.** A node is busy for about as long as all of its waves take,
+  one after another. `launch_cf` reports how many waves each node will run,
+  but it can't know how long the steps take, so ask for enough walltime for
+  all of them.
 - **Steps bound to cores or NUMA domains.** By default a new step starts in
-  place of whichever step finished first. If each line of the command file
-  binds its step to particular cores, for example with
-  `numactl --cpunodebind=d`, where `d` is a NUMA domain that can be seen from
-  `numactl -H` or `lscpu` output. The new step may land where steps are still
-  running while other cores sit idle. `--sync-waves` prevents this: each wave
-  starts only once every step of the wave before it has finished, so the
-  steps running together are always one wave's lines. Each wave then lasts
-  as long as its slowest step, which costs little when steps take about the
-  same time.
+  place of whichever step finished first. Suppose each line of the command
+  file binds its step to particular cores, for example with
+  `numactl --cpunodebind=d`, where `d` is one of the NUMA domains listed by
+  `numactl -H` or `lscpu`. Then a new step may start on cores where steps are
+  still running, while other cores sit idle. `--sync-waves` prevents this. It
+  starts each wave only once every step of the wave before it has finished,
+  so the steps running together are always the lines of one wave. Each wave
+  then lasts as long as its slowest step, which costs little when the steps
+  take about the same time.
 
-`--ppn` interacts with waves: without it, `launch_cf` asks for enough CPUs to
-run all of a node's steps at once, up to a full node; with it, `launch_cf`
+`--ppn` also affects waves. Without it, `launch_cf` asks for enough CPUs to
+run all of a node's steps at once, up to a full node. With it, `launch_cf`
 asks for that many CPUs, and the steps that don't fit run in waves. This is
-helpful when steps require more memory for the combined number of steps than
-can be accommodated by the node.
+helpful when the steps running at once would need more memory than the node
+has.
 
 The examples [`python-regrid`](examples/python-regrid) and
 [`python-regrid-sweep-sync`](examples/python-regrid-sweep-sync) show waves
@@ -203,8 +205,9 @@ that did not succeed:
 launch_cf -A PBS_ACCOUNT -l walltime=1:00:00 --rerun 1234567
 ```
 
-`launch_cf` lists the steps it found and why, writes them to a new command
-file, `./<command file>.1234567.rerun`, and submits that. If every step
+`launch_cf` lists the steps it found and why each needs to run again. It
+writes them to a new command file, `./<command file>.1234567.rerun`, and
+submits that. If every step
 succeeded, it says so and submits nothing. Repeat with each new job id until
 nothing is left.
 
@@ -212,9 +215,9 @@ nothing is left.
   job's node logs and step output there. Don't delete them, or edit the
   command file, until everything has run. If the job's logs don't record its
   command file, give the command file as well.
-- **Choose the layout again.** The options of the earlier job are not reused:
-  give `-A`, `-l walltime`, the queue, `--nthreads` and so on for what is
-  left, which is often far fewer steps.
+- **Choose the layout again.** The options of the earlier job are not
+  reused, so give `-A`, `-l walltime`, the queue, `--nthreads` and the rest
+  again. Choose them for the steps that are left, which are often far fewer.
 - **Rerun steps keep their numbers.** Each line of the rerun command file
   starts with `step=N;`, so `${step}` and the name of its output,
   `step-NNNNN.out` in the new job's `stdout-` directory, are those of the
@@ -223,18 +226,19 @@ nothing is left.
   its output. When it reruns, it should start over or carry on from where it
   stopped, not trip over what it left behind.
 
-PBS doesn't put a job back in the queue reliably: a job array can't be made
-non-rerunnable, and on Derecho a preempted job is deleted rather than requeued.
-`--rerun` is the way to finish the steps such a job didn't.
+PBS can't be relied on to run an interrupted job again. A job that runs out
+of walltime is not put back in the queue, and on Derecho a preempted job is
+deleted rather than requeued. `--rerun` is the way to finish the steps that
+such a job didn't.
 
 ## The preempt queue
 
 Together, waves of independent steps and `--rerun` make Derecho's `preempt`
 queue practical. It runs jobs only on nodes that would otherwise be idle, at
 **a fifth of the usual charge**, but can take a node back at any time. With
-`launch_cf`, a node taken back loses only the steps it was running or hadn't
-started; every other node, and every finished step, is unaffected, and
-`--rerun` resubmits the rest. The price is not knowing when the work will
+`launch_cf`, a node that is taken back loses only the steps it was running
+or hadn't started. Every other node and every finished step is unaffected,
+and `--rerun` resubmits the rest. The price is not knowing when the work will
 finish. See [`python-regrid-nodes-rerun`](examples/python-regrid-nodes-rerun)
 for a worked example, including a real preemption.
 

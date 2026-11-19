@@ -13,18 +13,19 @@ two versions of the analysis:
 All runs used Derecho CPU nodes (2 × AMD EPYC 7763, 128 cores, 8 NUMA
 domains of 16 cores), the `npl-2026a` conda environment and
 `NUMBA_THREADING_LAYER=omp`. The cost measure throughout is **node-seconds
-per file**: for each node, the time from its first step starting to its last
-step ending (from `launch_cf`'s log, to the second), summed over nodes and
-divided by the files. One run per configuration unless noted; differences
-under about 0.05 node-s per file are within run-to-run noise.
+per file**. For each node, it takes the time from its first step starting to
+its last step ending, from `launch_cf`'s log to the second. It sums those
+times over the nodes and divides by the number of files. There was one run
+per configuration unless noted, and differences under about 0.05 node-s per
+file are within run-to-run noise.
 
 ## The two-pass versions
 
 A step computes, for each hour, the anomaly from the mean of the file's own
 day, plus the vertical difference and 5-point stencil of
-[`../python-regrid`](../python-regrid). That needs the daily mean before any
-anomaly, so a step makes two passes: pass 1 reads all 24 hours and averages
-them, pass 2 reads each hour again and computes. Every hour is read and
+[`../python-regrid`](../python-regrid). The daily mean is needed before any
+anomaly, so a step makes two passes. Pass 1 reads all 24 hours and averages
+them, and pass 2 reads each hour again and computes. Every hour is read and
 decompressed twice.
 
 | script | reader | memory per step |
@@ -44,10 +45,10 @@ them with `submit_study.sh io|pario|keep ...` and summarize with
 
 ### One step alone
 
-On an otherwise empty node (one-pass scripts of the time, file cached;
-job 8177159), h5py spent about 12.6 s inside HDF5 at every thread count.
-pario overlapped decompression across threads: at 16 threads it took
-1.07 s against h5py's 12.84 s, 12 times faster.
+These runs used the one-pass scripts of the time and a cached file, on an
+otherwise empty node (job 8177159). h5py spent about 12.6 s inside HDF5 at
+every thread count. pario spread decompression over its threads. At 16
+threads it took 1.07 s against h5py's 12.84 s, which is 12 times faster.
 
 Where a read spends its time, per pass over one file (job 8176864):
 
@@ -60,21 +61,22 @@ Where a read spends its time, per pass over one file (job 8176864):
 | uncompressed copy, `pread` with 8 threads, first read | 3.3 |
 | uncompressed copy, h5py, cached | 0.7 |
 
-So decompression, not reading from disk, limits a compressed read: reading
-the 1.3 GB file took 0.5 to 4 s, against about 11 s to inflate it on one
-thread.
+So decompression, not reading from disk, limits a compressed read. Reading
+the 1.3 GB file took 0.5 to 4 s, while inflating it on one thread took about
+11 s.
 
-**Uncached against cached** (`io_cold.pbs`, job 8205580): reading a file no
-one had read recently added at most 0.15 s per step up to 4 threads, and 0.2
-to 0.4 s for pario at 8 and 16 threads. Campaign Storage is GPFS, which
+**Uncached against cached.** In `io_cold.pbs` (job 8205580), reading a file
+that no one had read recently added at most 0.15 s per step up to 4 threads,
+and 0.2 to 0.4 s for pario at 8 and 16 threads. Campaign Storage is GPFS, which
 caches in its own client pool, not in Linux's page cache, so a "cached"
 re-read may not come from local memory.
 
 ### Packed nodes: bound against unbound, nodes against waves
 
-36 runs (jobs 8178511–8178547), each case three ways: 4 nodes × 1 wave,
-2 × 2, 1 × 4, with 4 × 128 / threads files per case. Bound steps ran under
-`numactl` with `--sync-waves`. Node-seconds per file:
+There were 36 runs (jobs 8178511–8178547). Each case ran three ways, as
+4 nodes × 1 wave, 2 × 2 and 1 × 4, with 4 × 128 / threads files per case.
+Bound steps ran under `numactl` with `--sync-waves`. The table gives
+node-seconds per file:
 
 | case | bound 4 × 1 | 2 × 2 | 1 × 4 | unbound 4 × 1 | 2 × 2 | 1 × 4 |
 | ---- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -99,12 +101,12 @@ re-read may not come from local memory.
   [`../python-regrid-io-arrays`](../python-regrid-io-arrays) uses to size its
   wall-time requests.
 
-**Equal files at every thread count** (jobs 8180500–8180503): 512 files on one
-node at 2 and 4 threads cost 0.54 and 0.58 bound, against 0.51 at 1 thread.
-The order held, so 1 thread is not cheapest only because its run had more
-files. Idle cores were 5–6% of node time in every bound run; the extra cost of
-more threads is inside the step (61 to 69 core-seconds per file from 1 to 4
-threads).
+**Equal files at every thread count.** In jobs 8180500–8180503, 512 files on
+one node at 2 and 4 threads cost 0.54 and 0.58 bound, against 0.51 at 1
+thread. The order held, so 1 thread is not cheapest only because its run had
+more files. Idle cores were 5–6% of node time in every bound run. The extra
+cost of more threads is inside the step, which took 61 core-seconds per file
+at 1 thread and 69 at 4.
 
 ### Decompress once: `--keep`
 
@@ -116,23 +118,25 @@ threads).
 | bound, 8 threads   | 0.67 | 0.53 |
 | unbound, 4 threads | 0.73 | 0.53 |
 
-Keeping the day in memory halved the time spent waiting for data (bound,
-4 threads: 22.9 to 11.7 core-seconds per file), and made `--keep` at 4
-threads the cheapest two-pass layout, 12% below plain pario at 1 thread. At
-4.8 GB per step it fits only at 4 or 8 threads per step.
+Keeping the day in memory halved the time spent waiting for data, from 22.9
+to 11.7 core-seconds per file for bound steps of 4 threads. That made
+`--keep` at 4 threads the cheapest two-pass layout, 12% below plain pario at
+1 thread. A step needs 4.8 GB, so `--keep` fits only at 4 or 8 threads per
+step.
 
-This led to the one-pass version: with a climatology computed once, a step
+This led to the one-pass version. With a climatology computed once, a step
 needs only pass 2, and no extra memory.
 
 ## The climatology and the first analysis runs (16 Nov 2026)
 
-**Building the climatology** (job 8207608): 366 steps, all succeeded; 4
-nodes, 3 synchronized waves, 12.5 minutes, **107 core-hours**. Each step read
-its 30 files in about 4 minutes and wrote its 154 MB file in 0.3 s; 53 GB in
-all.
+**Building the climatology.** Job 8207608 ran 366 steps on 4 nodes in 3
+synchronized waves, and every step succeeded. It took 12.5 minutes and
+**107 core-hours**. Each step read its 30 files in about 4 minutes and wrote
+its 154 MB file in 0.3 s, 53 GB in all.
 
-**Analysis**, 512 files on one node, bound (jobs 8207720–8207722), compared
-with the best two-pass layouts ([above](#the-two-pass-versions)):
+**Analysis.** Jobs 8207720–8207722 ran 512 files on one node with bound
+steps. The table compares them with the best two-pass layouts
+([above](#the-two-pass-versions)):
 
 | script | threads per step | node-s per file | peak memory per step |
 | ------ | ---------------: | --------------: | -------------------: |
@@ -147,16 +151,17 @@ against 36 core-seconds per file at 1 thread) and needs no more memory than
 two-pass `pario`, so 1 thread per step, all 128 cores busy, is again the
 cheapest layout.
 
-The climatology is a one-time cost: about 3,000 node-seconds, or 3,000 ÷ N
-node-seconds per file over N files analysed. Over all ~31,000 ERA5 days since
-1940 that adds 0.10 (0.46 in total); over 30 years of days, 0.27 (0.63 in
-total, more than two-pass `pario`). It pays off when it is reused, by many
-files or many analyses.
+The climatology is a one-time cost of about 3,000 node-seconds, which adds
+3,000 ÷ N node-seconds per file over N files analysed. Over all ~31,000 ERA5
+days since 1940, that adds 0.10, for a total of 0.46. Over 30 years of days,
+it adds 0.27, for a total of 0.63, which is more than two-pass `pario`. The
+climatology pays off when it is reused by many files or many analyses.
 
 ## h5py against pario, one pass (16 Nov 2026)
 
-`./run_study.sh` (jobs 8207950–8207988, about 360 core-hours, every step
-succeeded) compares the two readers of `calc_anomaly_numba_climo.py`:
+`./run_study.sh` compares the two readers of `calc_anomaly_numba_climo.py`.
+Its runs (jobs 8207950–8207988) cost about 360 core-hours, and every step
+succeeded:
 
 * **One step alone** (`solo.pbs`): h5py takes 13–16 s per file at every
   thread count, because HDF5 decompresses on one thread. pario takes 12.2 s at
@@ -170,9 +175,10 @@ succeeded) compares the two readers of `calc_anomaly_numba_climo.py`:
   | pario, 17 Nov    | **0.33** | 0.35 | 0.36 | 0.51 | 0.62 |
   | h5py, 17 Nov     | 0.48 | 0.47 | 0.62 | 1.06 | – |
 
-  Packed, the readers are much closer than alone: one step per core already
-  decompresses 128 files in parallel. Steps slow down 2–4× against running
-  alone; the memory-bound compute slows most (about 10× at 1 thread).
+  Packed, the readers are much closer than alone, because one step per core
+  already decompresses 128 files in parallel. Steps run 2–4 times slower
+  than alone, and the memory-bound compute slows most, about 10 times at
+  1 thread.
 * **Nodes against waves, 512 files per case** (4 × t, 2 × 2t, 1 × 4t waves at
   t threads), bound and unbound: one node is the cheapest layout in 11 of 12
   series (12 of 12 in the repeat); bound beats unbound most at 1 thread (0.36
@@ -200,14 +206,14 @@ access time showed no read for at least 24 hours; the list as of 16 Nov is
 
 ### Nodes against waves a third time (18 Nov 2026)
 
-All 36 nodes-against-waves runs of `run_study.sh` again (jobs 8226947–8226983, about 380 core-hours,
-`logs/run_studyC.20261118.log`), from lines 40000–58431 of
-`era5_t_files.txt`. The appended files are the least recently read, each
+All 36 nodes-against-waves runs of `run_study.sh` ran a third time (jobs
+8226947–8226983, about 380 core-hours, `logs/run_studyC.20261118.log`), on
+lines 40000–58431 of `era5_t_files.txt`. The appended files are the least recently read, each
 last read at least 16 hours earlier. These runs were submitted at once, not
 chained. The 12 four-node `main` jobs started together, alongside the
 `develop` jobs, and for 12 minutes up to 20 nodes read at once. The 17 runs in
-that window cost 17% more than the mean of 16 and 17 Nov: pario 28% more,
-almost all of it waiting for data, and h5py 2% more. The 19 later runs, two or
+that window cost 17% more than the mean of 16 and 17 Nov. pario cost 28%
+more, almost all of it in waiting for data, and h5py cost 2% more. The 19 later runs, two or
 three nodes at a time, cost 2% less. Averaged over the three runs, one node
 is the cheapest layout in 11 of 12 series. The exception is pario bound at 8
 threads, whose 18 Nov 1-node run shared the file system. Four nodes is the

@@ -1,26 +1,26 @@
 # `launch_cf` Examples
 
-These examples show how to run many independent pieces of work, the steps
+These examples show how to run many independent computations, the steps
 of a command file, on Derecho's CPU nodes with `launch_cf`, and how to lay
-them out so that they cost as little as possible. They start with programs
-that do nothing and end with real analyses of ERA5 data.
+them out so that they cost as little as possible. They start with simple
+hello-world-type programs and end with real analyses of ERA5 data.
 
-[`../README.md`](../README.md) describes `launch_cf` and its options. These
-examples assume you have read its first sections.
+[`../README.md`](../README.md) describes `launch_cf` and its options. Refer
+to that if you need introductory material.
 
 ## Before you start
 
 - Set `PBS_ACCOUNT` to your project code: `export PBS_ACCOUNT=<project>`.
   Every submit script uses it.
-- Build the small test program the first examples use, from this directory:
-  `make hello_omp.exe`.
-- Some examples use `launch_cf` options that are newer than the installed
-  `launch_cf`: waves, `--sync-waves`, `--nodes` and `--rerun`. Until they
+- Build the small test program that the first examples use by running
+  `make hello_omp.exe` in this directory.
+- Some examples use options that are newer than the installed `launch_cf`,
+  such as waves, `--sync-waves`, `--nodes` and `--rerun`. Until they
   are installed, those examples' scripts put a development copy first in
-  `PATH`, and say so.
+  `PATH`.
 
-Each example directory has a `README.md`: what the example shows, what to
-run, and what to expect. Where an example grew out of a longer study, the
+Each example directory has a `README.md`. It describes the purpose of the
+example, what to run, and what to expect. Where an example grew out of a longer study, the
 full measurements are in a `DETAILS.md` beside it. You don't need those to
 follow the examples.
 
@@ -63,8 +63,8 @@ post-processing.
 
 ## What they cost
 
-The first examples cost very little. Some later ones run large studies; each
-README says what its runs cost. The largest:
+The first examples cost very little. Some later ones run large studies, and
+each README says what its runs cost. The largest are these:
 
 | example | run | about |
 | ------- | --- | ----: |

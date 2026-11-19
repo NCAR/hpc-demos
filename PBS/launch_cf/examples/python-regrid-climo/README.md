@@ -1,20 +1,20 @@
 # ERA5 Anomalies, One File per Step
 
 This example computes temperature anomalies from ERA5 reanalysis files on
-GLADE, one day's file per `launch_cf` step, against a 1991–2020 climatology.
-It runs as two `launch_cf` jobs:
+GLADE against a 1991–2020 climatology. Each `launch_cf` step processes one
+day's file. The example runs as two `launch_cf` jobs:
 
-1. **Build the climatology, once.** 366 steps, one per calendar day. Each
-   averages that day's 24 hourly fields over the 30 years and writes one
-   uncompressed field to `climo/`.
-2. **Analyse the files.** One step per ERA5 day. Each step reads its day's
-   climatology, then reads, decompresses and computes on each hour of the
-   file once.
+1. **Build the climatology, once.** This job runs 366 steps, one per
+   calendar day. Each step averages that day's 24 hourly fields over the 30
+   years and writes one uncompressed field to `climo/`.
+2. **Analyse the files.** This job runs one step per ERA5 day. Each step
+   reads its day's climatology, then reads, decompresses and computes on
+   each hour of the file once.
 
-It shows:
+The example shows three things:
 
-- **A two-stage workflow:** a one-time job whose output many later steps
-  reuse.
+- **A two-stage workflow.** A one-time job produces output that many later
+  steps reuse.
 - **Steps that read real, compressed data.** Decompressing the file costs
   more than computing on it, so how a step decompresses matters.
 - **How to pack steps onto nodes for the least cost.** For this workload,
@@ -28,22 +28,22 @@ here, including the two-pass versions this example replaced, are in
 
 ## The data and the calculation
 
-Each input file is one day of ERA5 temperature on pressure levels
-(`e5.oper.an.pl.128_130_t`, from GDEX dataset d633000 on GLADE): 24 hours ×
-37 levels × 721 latitudes × 1440 longitudes, 3.7 GB of 32-bit values,
-compressed to about 1.3 GB. Each hour is stored as one compressed chunk, so
+Each input file holds one day of ERA5 temperature on pressure levels
+(`e5.oper.an.pl.128_130_t`, from GDEX dataset d633000 on GLADE). It has 24
+hours × 37 levels × 721 latitudes × 1440 longitudes, which is 3.7 GB of
+32-bit values, compressed to about 1.3 GB. Each hour is stored as one compressed chunk, so
 a program has to read and decompress a chunk to use an hour.
 
-For each hour, a step computes the anomaly from the climatology of its
-calendar day, plus the vertical difference and 5-point horizontal stencil of
-`../python-regrid`, with Numba threads.
+For each hour, a step uses Numba threads to compute the anomaly from the
+climatology of its calendar day. It adds the vertical difference and the
+5-point horizontal stencil of `../python-regrid`.
 
-The step can read the file two ways:
+A step can read its file in two ways:
 
-- **`climo`** (the default): a pool of threads reads the compressed bytes and
-  decompresses several hours at once.
-- **`climoh5`** (`--h5py`): HDF5 reads each hour through h5py. HDF5
-  decompresses on one thread, whatever the step's thread count.
+- **`climo`** (the default). A pool of threads reads the compressed bytes
+  and decompresses several hours at once.
+- **`climoh5`** (`--h5py`). HDF5 reads each hour through h5py, and
+  decompresses on one thread whatever the step's thread count.
 
 ## Before you start
 
@@ -63,29 +63,30 @@ From this directory on a Derecho login node:
 ./summarize_study.py                    # once it has finished
 ```
 
-`make_climo.sh` writes `climo/T_1991-2020_MMDD.h5`, 154 MB per day. If some
-days fail, run it again: it submits only the days that are missing.
+`make_climo.sh` writes one file per day, `climo/T_1991-2020_MMDD.h5`, of
+154 MB. If some days fail, run it again. It submits only the days that are
+missing.
 
-`submit_study.sh climo bound 1 1 4 0` means: the `climo` reader, steps bound to
-NUMA domains, 1 thread per step, 1 node, 4 waves, starting at line 0 of
-[`era5_t_files.txt`](era5_t_files.txt). A node runs 128 one-thread steps at
+`submit_study.sh climo bound 1 1 4 0` uses the `climo` reader, binds the
+steps to NUMA domains, and runs 1 thread per step on 1 node in 4 waves,
+starting at line 0 of [`era5_t_files.txt`](era5_t_files.txt). A node runs 128 one-thread steps at
 once, so 4 waves is 512 files. Each wave starts once the one before it has
 finished.
 
 ## What to expect
 
 `summarize_study.py` prints one line per run. The column to watch is
-`node-s/step`: the node time the run used, divided by its files. It is the
-cost per file, and it compares runs of any shape. Expect about **0.33 to 0.36
+`node-s/step`, which is the node time the run used divided by the number of
+files. It is the cost per file, and it lets you compare runs of any shape. Expect about **0.33 to 0.36
 node-seconds per file**, and every one of the 512 steps `ok`.
 
 A one-thread step takes about 12 seconds alone on a node, but about 40
 seconds on a full node, because 128 steps share the node's memory bandwidth
-and its link to GLADE. That is expected: the cost per file is what matters,
-not the time of one step.
+and its link to GLADE. That is expected. The cost per file is what
+matters, not the time of one step.
 
-Results vary from run to run by about 7% (up to 25% on 4 nodes), mostly with
-how busy GLADE is while the files are read.
+Results vary from run to run by about 7%, and by up to 25% on 4 nodes. Most
+of the variation comes from how busy GLADE is while the files are read.
 
 ## Trying other layouts
 
@@ -97,8 +98,8 @@ Give each run its own `<first file>`, so that no run reads files another has
 just read. For example, `./submit_study.sh climoh5 bound 1 1 4 512` runs the
 h5py reader on the next 512 files.
 
-`io`, `pario` and `keep` are the earlier two-pass scripts, which measure each
-hour against the mean of its own day instead of a climatology; see
+`io`, `pario` and `keep` are the earlier two-pass scripts. They measure each
+hour against the mean of its own day instead of a climatology. See
 [DETAILS.md](DETAILS.md#the-two-pass-versions).
 
 ## What we found
@@ -108,11 +109,11 @@ hour against the mean of its own day instead of a climatology; see
   steps 0.38–0.46.
 - **One node in several waves beats several nodes in one.** The same 512
   files cost more spread over 2 or 4 nodes, largely because hundreds of
-  Python processes starting at once start slowly. And the 1-node jobs, in
-  `develop`, started within seconds, while 4-node jobs in `main` waited up
+  Python processes starting at once start slowly. Also, the 1-node jobs in
+  `develop` started within seconds, while 4-node jobs in `main` waited up
   to 23 minutes.
-- **Parallel decompression wins alone, less so packed.** One step alone
-  is 5 times faster with `climo` than with `climoh5` at 16 threads. On a
+- **Parallel decompression helps most when a step runs alone.** One step
+  alone is 5 times faster with `climo` than with `climoh5` at 16 threads. On a
   full node, 128 one-thread steps already decompress 128 files at once, and
   `climo` is only about 30% cheaper.
 - **The climatology pays off when it is reused.** The 107 core-hours spread

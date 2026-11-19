@@ -1,15 +1,16 @@
 # Wide or Narrow? Job Array Shape and the Queue
 
 `launch_cf` can run the same steps on many nodes for a short time, or on few
-nodes for longer, in waves. This example asks how that choice plays with the
-PBS queue on Derecho:
+nodes for longer, in waves. This example asks how that choice interacts with
+the PBS queue on Derecho:
 
 - Does a wide job array (many nodes) get a lower priority, or wait longer,
   than a narrow one?
 - Which shape finishes sooner, and which costs less?
 
-It submits one **set**: the same work, 1024 ERA5 files, as seven `launch_cf`
-jobs of different shapes, all at the same moment, in `main`:
+It submits one **set**, which is the same work, 1024 ERA5 files, as seven
+`launch_cf` jobs of different shapes. All seven go to `main` at the same
+moment:
 
 | nodes | 64 | 32 | 16 | 8 | 4 | 2 | 1 |
 | ----- | -: | -: | -: | -: | -: | -: | -: |
@@ -18,23 +19,24 @@ jobs of different shapes, all at the same moment, in `main`:
 While they wait and run, a sampler records each job's priority and place in
 line every minute.
 
-In short: **the shape doesn't change a job's priority**, and the narrow
+In short, **the shape doesn't change a job's priority**, and the narrow
 1-node job was the cheapest, though it finished last. See
 [What we found](#what-we-found), and [DETAILS.md](DETAILS.md) for the
 measurements.
 
-Read [`../python-regrid-climo`](../python-regrid-climo) first: the steps
-here are its two-pass `pario` steps.
+Read [`../python-regrid-climo`](../python-regrid-climo) first, because the
+steps here are its two-pass `pario` steps.
 
 ## The steps
 
-Each step is one ERA5 day through `calc_anomaly_numba_pario.py` (parallel
-decompression, two passes; see
-[`../python-regrid-climo`](../python-regrid-climo/DETAILS.md#the-two-pass-versions)),
-8 threads, bound to a NUMA domain with `numactl`, 16 at once per node, in
-synchronized waves. A wave takes about 11 seconds, so each job asks for
-5 minutes plus 20 seconds per wave, rounded up to 5 minutes: 10 minutes for
-the widest, 30 for the 1-node job.
+Each step runs one ERA5 day through `calc_anomaly_numba_pario.py`, which
+decompresses in parallel and makes two passes over the file (see
+[`../python-regrid-climo`](../python-regrid-climo/DETAILS.md#the-two-pass-versions)).
+Each step uses 8 threads and is bound to a NUMA domain with `numactl`. A
+node runs 16 steps at once, in synchronized waves. A wave takes about 11
+seconds, so each job asks for 5 minutes plus 20 seconds per wave, rounded up
+to 5 minutes. That is 10 minutes for the widest job and 30 for the 1-node
+job.
 
 ## Before you start
 
@@ -65,8 +67,8 @@ just read. `DRYRUN=1` writes everything without submitting.
 
 `sample_prio.sh` keeps running until every job of the set has finished, so
 start it in the background or in a second terminal. It writes
-`samples/<set>/`: the queue order and every subjob's state, once a minute,
-and each job's final record from `qstat -x`.
+the queue order and every subjob's state to `samples/<set>/` once a minute,
+and each job's final record from `qstat -x` when the set has finished.
 
 ## What to expect
 
@@ -87,8 +89,9 @@ nodes waves    wall | prio: first max   age s | place: 1st best | wait s: first 
 
 ## What we found
 
-Two sets, on 16 November 2026 (in the first, every step failed at once on a
-missing import, which was then fixed; its queue data is still valid):
+We ran two sets on 16 November 2026. In the first, every step failed at once
+on a missing import, which was then fixed, but its queue data is still
+valid. The two sets showed the following:
 
 - **Shape doesn't change priority.** Every run of a set had the same
   priority when submitted, and it rose only with time spent waiting.
@@ -97,9 +100,9 @@ missing import, which was then fixed; its queue data is still valid):
 - **The wide array finished first, the narrow job last.** In the second set,
   64 nodes × 1 wave was done 17 minutes after submission, 1 node × 64 waves
   after 32.
-- **The narrow job was the cheapest:** 881 node-seconds, against 1,000 to
-  2,100 for the wider shapes, probably because fewer Python processes start
-  at once, and fewer nodes read GLADE at once.
+- **The narrow job was the cheapest.** It used 881 node-seconds, against
+  1,000 to 2,100 for the wider shapes, probably because fewer Python
+  processes start at once and fewer nodes read GLADE at once.
 
 So if you can wait, fewer nodes cost less. With two sets, which shape
 *starts* first is not settled; [DETAILS.md](DETAILS.md) has both.

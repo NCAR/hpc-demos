@@ -13,9 +13,9 @@ step, and varies two things:
 Each combination runs twice, **unbound** (Linux places each step's threads
 and memory) and **bound** (each step kept in one NUMA domain with `numactl`).
 
-The question it answers: given many steps, how should you lay them out on
-nodes so that they cost the least? In short, **bind, and then threads and
-waves hardly matter.** See [What we found](#what-we-found), and
+The question it answers is how to lay out many steps on nodes so that they
+cost the least. In short, **bind the steps, and then threads and waves hardly
+matter.** See [What we found](#what-we-found), and
 [DETAILS.md](DETAILS.md) for every measurement.
 
 ## Waves, and why bound runs synchronize them
@@ -30,9 +30,9 @@ the domains evenly. But if the next wave's steps start as soon as any step
 finishes, line 17 (domain 0) may start while domain 0's steps are still
 running and another domain sits idle.
 
-`launch_cf --sync-waves` prevents this: each wave starts only once every
+`launch_cf --sync-waves` prevents this. It starts each wave only once every
 step of the wave before it has finished. Then the steps running together are
-always one wave's lines, two per domain for 8-thread steps. The cost is that
+always the lines of one wave, two per domain for 8-thread steps. The cost is that
 each wave lasts as long as its slowest step. Bound steps of this calculation
 take nearly the same time, so that cost is 1 to 3% of node time.
 
@@ -69,7 +69,8 @@ launch_cf -q develop -l walltime=0:10:00 -A $PBS_ACCOUNT -N rs-b-t08-n032-w2 \
     --steps-per-node 32 --nthreads 8 --sync-waves cmdfiles/cmdfile.bound.t08.n032.w2
 ```
 
-(no `--sync-waves` for unbound). It works out the job from its arguments:
+(without `--sync-waves` for the unbound run). It works out the job from its
+arguments as follows:
 
 ```
 steps at once  = 128 / threads
@@ -91,9 +92,9 @@ ITERS=400 WALLTIME=0:30:00 ./sweep.sh       # the whole sweep: 24 jobs
 ```
 
 Start with the single pair. It runs in the `develop` queue and costs about
-one core-hour. The whole sweep is much bigger: about **430 core-hours**, and
-`THREADS="1 2 4 8"`, to include 1-thread steps, adds about 470 more.
-`PLACEMENTS=bound` halves either.
+one core-hour. The whole sweep is much bigger. It costs about **430 core-hours**,
+and adding 1-thread steps with `THREADS="1 2 4 8"` costs about 470 more.
+`PLACEMENTS=bound` halves either cost.
 
 `sweep.sh` gives each thread count 8 nodes' worth of one wave, and spreads it
 four ways:
@@ -127,8 +128,9 @@ stdout-<job id>/                       the steps' output
 ## What to expect
 
 `summarize.py` prints one line per run. The column to compare is
-`node-s/step`: each node's time from its first step's start to its last
-step's end, summed over the nodes, per step. Expect:
+`node-s/step`. For each node, it takes the time from its first step's start
+to its last step's end, sums those times over the nodes, and divides by the
+number of steps. Expect these results:
 
 - **bound runs** at about **1.4 node-seconds per step**, with `fill` (the
   share of cores busy with a step) of 97 to 99%;
@@ -143,7 +145,7 @@ and in [DETAILS.md](DETAILS.md#what-summarizepy-reports).
   step (one run 1.73, slowed by start-up); unbound 1.54 to 2.39.
 - **With binding, threads per step hardly matter.** The node moves about
   320 GB/s of memory whether it runs 128 one-thread steps or 16 eight-thread
-  ones: its memory, not its cores, is the limit. Choose threads per step for
+  ones. Its memory, not its cores, is the limit. Choose threads per step for
   other reasons, such as memory per step or how many steps you have.
 - **With binding, waves cost nothing.** One node in 8 waves cost the same or
   less than 8 nodes in 1, because fewer Python processes start at once. It
@@ -151,7 +153,7 @@ and in [DETAILS.md](DETAILS.md#what-summarizepy-reports).
 - **Unbound, more waves help only small steps.** At 1 and 2 threads, 8 waves
   cut the cost from 2.39 and 2.05 to 1.60 and 1.54, as short steps filled in
   behind slow ones. At 4 and 8 threads the cost rose, from 1.94 to 2.10 and
-  2.20: steps compute more slowly when they start on a busy node. Even at its
+  2.20, because steps compute more slowly when they start on a busy node. Even at its
   best, unbound cost 13 to 18% more than bound.
 
 An earlier version bound each step to a free domain with lock files instead

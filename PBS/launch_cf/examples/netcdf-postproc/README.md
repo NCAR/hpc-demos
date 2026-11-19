@@ -33,7 +33,7 @@ contiguous United States):
 | `ncra -y max` | `<file>.max.nc`     | maximum over the file's period           |
 | `ncks`        | `<file>.series.nc`  | the full time series, region only        |
 
-ERA5 forecast products (`e5.oper.fc.*`) have two time dimensions:
+ERA5 forecast products (`e5.oper.fc.*`) have two time dimensions,
 `forecast_initial_time` and, inside each record, `forecast_hour`. `ncra`
 reduces only the first, so the step finishes the mean and the maximum over
 `forecast_hour` with `ncwa`. It also drops variables that averaging turns
@@ -89,8 +89,8 @@ The data is ERA5 (dataset `d633000`) in the NSF NCAR Geoscience Data Exchange
 on GLADE. File sizes differ as much between the parameters of one product as
 between products. In `e5.oper.fc.sfc.meanflux`, for example, the averages range
 from 13 to 669 MB. So `check_data.sh` measures each parameter, and recommends
-a product *and* a parameter. Its `gdexls` catalogue was no help here: it still
-describes the GRIB1 files withdrawn in 2025.
+a product *and* a parameter. The `gdexls` catalogue was no help here, because it
+still describes the GRIB1 files withdrawn in 2025.
 
 ### 2. Stage the inputs
 
@@ -106,8 +106,8 @@ nodes at 42 steps per node; a multiple of 42 keeps every node full.
 
 `./data` must hold only the current selection, because the command file and
 the gather use every file in it. If it holds anything else, `make_data.sh`
-stops, and `CLEAN=1` removes those files first. Other settings: `COPY=1`
-(copies instead of symlinks), `SRCDIR`, `OUTDIR`.
+stops, and `CLEAN=1` removes those files first. Other settings are `COPY=1`
+(copy instead of symlinking), `SRCDIR` and `OUTDIR`.
 
 ### 3. Write the command files
 
@@ -160,8 +160,8 @@ stops with a list if any are missing (`grep -l ERROR stdout-*/step-*.out` finds
 the failed steps). It ignores files in the output directory that didn't come
 from the current inputs.
 
-`compare_runs.sh` compares the runs by **step** time: each step's log ends with
-a line from `process_file.sh` giving how long that step took. The time the
+`compare_runs.sh` compares the runs by **step** time. Each step's log ends with
+a line from `process_file.sh` that gives how long that step took. The time the
 whole array took isn't a fair comparison, because array jobs often run one
 after another as nodes come free. Steps on a partly filled last node run much
 faster than steps on a full one, so they are counted but left out of the

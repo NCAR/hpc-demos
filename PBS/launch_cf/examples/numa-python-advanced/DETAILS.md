@@ -1,21 +1,21 @@
 # NUMA Placement for Threaded Python: Measurements
 
-This file holds the details behind [README.md](README.md): the computation,
-every result of the single-node trial and of the `launch_cf` version, and how
-to read a step's output.
+This file holds the details behind [README.md](README.md). It describes the
+computation, gives every result of the single-node trial and of the
+`launch_cf` version, and explains how to read a step's output.
 
 ## The computation
 
 [`climatology.py`](climatology.py) computes the time mean and standard
-deviation, at every grid point, of one month of hourly ERA5 2 m temperature:
-744 × 721 × 1440 float32 values, 3.1 GB, held in memory. The answer is two
+deviation, at every grid point, of one month of hourly ERA5 2 m temperature.
+The month is 744 × 721 × 1440 float32 values, 3.1 GB, held in memory. The answer is two
 721 × 1440 maps. It then computes the same two maps again, many times over,
 and throws every copy away. Only the timing matters.
 
 **Why repeat it.** One mean and standard deviation of the month takes about
 0.17 s on 16 threads, while reading the file from GLADE takes about 22 s. Done
 once, the computing would be too short to measure next to the load, so the
-script repeats it. Each repeat is honest work: the array is 50 times the L3
+script repeats it. Each repeat is honest work. The array is 50 times the L3
 cache of a NUMA domain, so nothing carries over from one repeat to the next,
 and every repeat streams all 3.1 GB from memory again. For the memory system,
 200 repeats over one month look like one computation over 200 months. The
@@ -30,12 +30,12 @@ mean and standard deviation have been computed once, and 6.2 GB has been read.
 
 **How many passes.** The two parts of the example repeat it differently:
 
-- `numa_test.sh` runs every thread for a fixed **20 s**, as many passes as fit:
-  about 115 for a process with its threads and memory together, about 70
-  without. The measure is how much it got through.
+- `numa_test.sh` runs every thread for a fixed **20 s**, as many passes as
+  fit. That is about 115 for a process with its threads and memory together,
+  and about 70 without. The measure is how much it got through.
 - `launch_cf` steps make a fixed **200 passes** per thread (`PASSES` in
-  `run_step.sh`): the month's mean and standard deviation 200 times, about
-  1.2 TB read. The measure is how long that took.
+  `run_step.sh`). They compute the month's mean and standard deviation 200
+  times and read about 1.2 TB. The measure is how long that took.
 
 Three things keep the measurement about memory placement:
 
@@ -51,9 +51,9 @@ Three things keep the measurement about memory placement:
   for every run; a `launch_cf` step reads it from GLADE and reports that time
   separately.
 
-Each run prints one line: its throughput, the NUMA domains its threads ran on,
-the domains holding its memory, and `local`, the share of the threads' time
-spent on the domain that holds their own band. `climatology.py` finds where the
+Each run prints one line. It gives the run's throughput, the NUMA domains its
+threads ran on, the domains holding its memory, and `local`, which is the
+share of the threads' time spent on the domain that holds their own band. `climatology.py` finds where the
 pages are with the `move_pages` system call, and where the threads run with
 `sched_getcpu`. [Reading a step's output](#reading-a-steps-output), below, explains
 every field.
@@ -90,7 +90,7 @@ process ran at 12–18.5 GB/s, a third to a half of the speed of a bound one.
 
 The main thread reads the array, so every page of a process lands in the
 domain that one thread happened to be on, and its 16 compute threads then
-read it from wherever the scheduler puts them. The log shows two costs:
+read it from wherever the scheduler puts them. The log shows two costs.
 
 - **Remote reads.** On average 31% of a free process's thread time was spent
   on a domain other than the one holding its data.
@@ -98,8 +98,9 @@ read it from wherever the scheduler puts them. The log shows two costs:
   domains would be luck. In every repeat at least one pair of processes had
   their memory in the same domain (two pairs in two of the three), and one or
   two domains held nobody's memory at all. A pair sharing a domain shared its
-  bandwidth: in repeat 2, the two processes with memory in domain 3 got 12.0
-  and 22.0 GB/s, 34 GB/s together, about what one bound process gets alone.
+  bandwidth. In repeat 2, the two processes with memory in domain 3 got 12.0
+  and 22.0 GB/s, 34 GB/s together, which is about what one bound process gets
+  alone.
   The idle domains' channels went unused.
 
 ### Fixes without binding don't hold
@@ -117,8 +118,8 @@ read it from wherever the scheduler puts them. The log shows two costs:
 
 ### Pinning threads inside the domain adds nothing
 
-`bind+pin` was 0.5% faster than `bind`: in every repeat, but too little to
-matter. Once `numactl` keeps a process's threads and memory in one domain,
+`bind+pin` was 0.5% faster than `bind` in every repeat, but that is too
+little to matter. Once `numactl` keeps a process's threads and memory in one domain,
 where the scheduler puts each thread among those 16 cores doesn't matter. That
 agrees with [`../netcdf-postproc`](../netcdf-postproc), where the scheduler
 placed independent processes at least as well as pinning did.
@@ -142,7 +143,7 @@ pages to the domain using them, or threads to the domain holding their
 memory.
 
 On Derecho it is off (0), and only root can change it. That is usual on HPC
-systems:
+systems, for the reasons in this table:
 
 | | on | off |
 | --- | --- | --- |
@@ -151,8 +152,8 @@ systems:
 
 So the `free` and `touch` results here are the full cost of poor placement,
 with nothing correcting it. With balancing on, they would probably improve
-over a long run, and `bind` would not change: memory bound with `--membind` is
-not moved. On a system where it is on, compare the counters
+over a long run, and `bind` would not change, because memory bound with
+`--membind` is not moved. On a system where it is on, compare the counters
 `numa_hint_faults`, `numa_hint_faults_local` and `numa_pages_migrated` in
 `/proc/vmstat` before and after a run to see how much it did.
 
@@ -198,7 +199,7 @@ report:
 | `s_per_pass` | seconds one mean and standard deviation of the whole array took at that rate |
 
 So this step's threads ran mostly in domains 3, 4 and 7, while all its
-memory sat in domain 0, where its main thread had read the file: only 1% of
+memory sat in domain 0, where its main thread had read the file. Only 1% of
 its thread time was local, and it ran at less than half the pinned speed.
 
 `compare_runs.sh` reports each run's step throughput (mean, minimum and
@@ -208,8 +209,8 @@ job.
 
 ## `launch_cf` results
 
-24 months (2019–2020) on 3 nodes per run, unpinned (job 7689807) and pinned
-(job 7689810), as `compare_runs.sh` reports them:
+These runs covered 24 months (2019–2020) on 3 nodes per run, unpinned (job
+7689807) and pinned (job 7689810). `compare_runs.sh` reports them as follows:
 
 ```
 run                    steps failed   GB/s    min    max  comp s  node s  local  load s
@@ -236,27 +237,28 @@ launch_cf.pinned.log      24      0   36.2   34.6   37.3    33.5    34.4  100%  
 
 ### Why the gap is larger than in the trial
 
-In the trial, unbound processes averaged 22 GB/s (177 GB/s over 8) and 69%
-local; here 18.8 GB/s and 51%. It is not that memory was spread differently:
-in 23 of the 24 unpinned steps all of a step's memory was in one domain, as
-in the trial, and pairs of steps shared a domain as often or a little more
-(each node left two or three domains holding nobody's memory).
+In the trial, unbound processes averaged 22 GB/s (177 GB/s over 8) and were
+69% local. Here they averaged 18.8 GB/s and 51%. The difference is not in how
+memory was spread. In 23 of the 24 unpinned steps, all of a step's memory was
+in one domain, as in the trial. Pairs of steps shared a domain as often or a
+little more, and each node left two or three domains holding nobody's
+memory.
 
 The difference is what a step waits for. Each thread owns a fixed band, so
-**a step with a fixed amount of work is as slow as its slowest thread**: the
+**a step with a fixed amount of work is as slow as its slowest thread**. The
 other 15 finish their passes and wait. A thread that spends part of the run
 on another domain, or sharing a core with another step's thread, holds back
-the whole step. In the trial each thread instead ran for a fixed 20 s, and a
-slow thread just did less of the total; the others kept going, so a slow
+the whole step. In the trial, each thread instead ran for a fixed 20 s, and a
+slow thread just did less of the total. The others kept going, so a slow
 thread cost only its own share.
 
 The unpinned steps show this. Even the nine whose threads were at least 70%
 local averaged only 21 GB/s, against 36 pinned. `201905` had domain 3 to
 itself and 77% of its thread time local, and still ran at 16.6 GB/s. Most
-threaded codes divide their work this way, OpenMP's usual static schedule
-included, so the `launch_cf` result is the one to expect from them: there,
-poor placement costs not just bandwidth but the time every thread spends
-waiting for the slowest.
+threaded codes divide their work this way, including OpenMP's usual static
+schedule, so the `launch_cf` result is the one to expect from them. There,
+poor placement costs not just bandwidth but also the time every thread
+spends waiting for the slowest.
 
 Placement decides not only how fast the average step runs, but how long the
 slowest step keeps the node.

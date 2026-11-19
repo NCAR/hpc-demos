@@ -1,8 +1,9 @@
 # Job Array Shape and the Queue: Measurements
 
-Two sets, submitted on 16 November 2026 to `main` at regular priority, as
-`./summarize.py` reports them. Each set is seven runs of the same 1024 files,
-submitted within a second of each other in a random order.
+This file reports two sets, submitted on 16 November 2026 to `main` at
+regular priority, as `./summarize.py` reports them. Each set is seven runs of
+the same 1024 files, submitted within a second of each other in a random
+order.
 
 ## How Derecho orders the queue
 
@@ -22,13 +23,13 @@ before a higher job needs them (backfill).
 `pbs-prio` reports each queued job's computed priority and place in line from
 a cache that CISL refreshes every few minutes, so consecutive samples may be
 the same. Note that `qstat -f -t -x -F json` of a finished job array puts a
-line `qstat: Unknown Job Id N` into its JSON; `summarize.py` strips it.
+line `qstat: Unknown Job Id N` into its JSON, and `summarize.py` strips it.
 
 ## Set s1 (jobs 8209412–8209418)
 
-Every step failed at once: `calc_anomaly_numba_pario.py` was missing an
-import. The jobs still queued and started normally, so their queue data is
-valid; their run times and costs are not.
+Every step failed at once, because `calc_anomaly_numba_pario.py` was missing
+an import. The jobs still queued and started normally, so their queue data is
+valid, but their run times and costs are not.
 
 | nodes | waves | wall | prio first | prio max | place first | place best | wait first s | wait median s | wait last s |
 | ----: | ----: | ---- | ---------: | -------: | ----------: | ---------: | -----------: | ------------: | ----------: |
@@ -58,20 +59,20 @@ All 1024 steps of every run succeeded.
 | 2  | 32 | 0:20 | 130.14 | 133.37 | 1026 | 1032 | 1039 | 1552 | 1012 | 526 |
 | 1  | 64 | 0:30 | 130.14 | 133.37 | 1011 | 1011 | 1011 | 1900 | **881** | 889 |
 
-`done s` is submission to the end of the last node; `node-s` is the node time
-used, summed over nodes; `run s` is the first node's start to the last
-node's end.
+`done s` is the time from submission to the end of the last node. `node-s`
+is the node time used, summed over the nodes. `run s` is the time from the
+first node's start to the last node's end.
 
 - **The runs started in job-id order**, 8209513 (64 nodes) first and 8209519
   (16 nodes) last, as equal priority predicts. In s1 they did not, so with
   two sets, which shape starts first is not settled.
 - **Wide arrays start their nodes over minutes.** The nodes of the 64-, 32-
-  and 16-node arrays started over 335, 205 and 190 s; those of 8 nodes or
-  fewer within 20 s of each other. An array's nodes don't have to
+  and 16-node arrays started over 335, 205 and 190 s. The nodes of arrays of
+  8 nodes or fewer started within 20 s of each other. An array's nodes don't have to
   start together, which is what lets a wide array start at all on a busy
   system.
-- **The narrowest jobs cost least:** 881 node-seconds on 1 node, 1,012 on 2
+- **The narrowest jobs cost least.** They used 881 node-seconds on 1 node, 1,012 on 2
   and 1,218 on 4, against 1,366 to 1,397 on 8 to 64 nodes. The 32-node run
-  cost 2,064; we don't know why.
+  cost 2,064, and we don't know why.
 
 One set costs about 9,300 node-seconds, or 330 core-hours.
