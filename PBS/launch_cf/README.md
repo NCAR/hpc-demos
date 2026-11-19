@@ -364,7 +364,7 @@ This can be thought of as the number of CPUs available per node that can be used
 | Derecho | 128     | 128 | 1   |
 | Casper  | 1       | 36* | 1   |
 
-*Casper's `htc` queue runs on two kinds of node, as PBS reports them: 64 AMD EPYC nodes that offer jobs 62 CPUs (one offers 64) and about 733 GB, and 54 Intel Xeon nodes (Cascade Lake and Skylake) that offer 36 CPUs, or 34 on 12 of them, and 330–360 GB. `launch_cf` allows at most 36 CPUs per node on Casper, which fits every one of these nodes except the 12 with 34; `--ppn 34` or less fits them all. Casper has other node types with different numbers of CPUs; see [Casper Node Types](https://ncar-hpc-docs.readthedocs.io/en/latest/compute-systems/casper/starting-casper-jobs/casper-node-types/). Asking for more CPUs than any available node has leaves a job waiting forever.
+*Casper's `htc` queue runs on two kinds of node, as PBS reports them: 64 AMD EPYC nodes that offer jobs 62 CPUs (one offers 64) and about 733 GB, and 54 Intel Xeon nodes (Cascade Lake and Skylake) that offer 36 CPUs, or 34 on 12 of them, and 330–360 GB. `launch_cf` allows at most 36 CPUs per node on Casper, which fits every one of these nodes except the 12 with 34; `--ppn 34` or less fits them all. Casper has other node types with different numbers of CPUs; see [Casper Node Types](https://ncar-hpc-docs.readthedocs.io/en/latest/compute-systems/casper/starting-casper-jobs/casper-node-types/). Asking for more CPUs than any available node leaves a job waiting forever.
 
 This value works with `--steps-per-node` and `--nthreads` to determine the total node and CPU requirements for your job array. See [Waves](#waves) for how it decides which steps run at once.
 
