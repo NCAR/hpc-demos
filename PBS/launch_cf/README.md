@@ -362,9 +362,9 @@ This can be thought of as the number of CPUs available per node that can be used
 | System  | Default | Max | Min |
 | ------- | ------- | --- | --- |
 | Derecho | 128     | 128 | 1   |
-| Casper  | 1       | 62* | 1   |
+| Casper  | 1       | 36* | 1   |
 
-**The most available and prioritized Casper HTC Nodes have 62 available processors.    Since Casper has many node types with different CPU amounts, be careful with allocating too many CPUs which will result in jobs never starting.*
+*Casper's high-throughput computing (HTC) nodes are of two types: 62 nodes with 36 cores (two 18-core Intel Xeon Gold 6240 processors) and 384 GB of memory, and 64 nodes with 62 usable cores (one 64-core AMD EPYC 9554P processor, 2 cores reserved for the operating system) and 768 GB. `launch_cf` allows at most 36 CPUs per node on Casper, so a job fits either type. Casper has other node types with different numbers of CPUs; see [Casper Node Types](https://ncar-hpc-docs.readthedocs.io/en/latest/compute-systems/casper/starting-casper-jobs/casper-node-types/). Asking for more CPUs than any available node has leaves a job waiting forever.
 
 This value works with `--steps-per-node` and `--nthreads` to determine the total node and CPU requirements for your job array. See [Waves](#waves) for how it decides which steps run at once.
 
@@ -414,8 +414,7 @@ Assigns the amount of memory available per node.  All the steps running at once 
 | Derecho | 235          | 235      | 4        |
 | Casper  | 10           | 733*     | 4        |
 
-
-**The HTC nodes have a maximum of 733GB of memory per node.  Large memory nodes are available on Casper if needed.*
+*PBS lets a job request up to about 733 GB per node on Casper's 768 GB HTC nodes (AMD EPYC), and up to about 360 GB on its 384 GB HTC nodes (Intel Xeon). A request of more than 360 GB can only run on the 768 GB nodes. `launch_cf` doesn't check `--mem`, so a request larger than any node offers waits indefinitely. Casper also has large-memory nodes, with about 1.5 TB; see [Casper Node Types](https://ncar-hpc-docs.readthedocs.io/en/latest/compute-systems/casper/starting-casper-jobs/casper-node-types/).
 
 ## CPU Type
 
