@@ -39,23 +39,23 @@ hello_omp.exe: hello_omp.cpp
 
 cmdfiles: $(CMDFILES)
 
-# 640 steps: with the Derecho defaults (ppn=128, nthreads=1) this is
-# 128 steps/node -> a 5-element job array -> 5 nodes.
-# Add further examples by copying this rule with a different step count.
+# 640 steps: with the Derecho defaults (128 CPUs, 1 thread per step) launch_cf
+# runs 128 steps per node, so a 5-element job array.
 derecho-640procs/cmdfile: gen_cmdfile.sh Makefile
 	./gen_cmdfile.sh --nsteps 640 --exe ../hello_omp.exe --output $@
 
-# 16 steps of a 16-thread application: 8 steps/node -> a 2-element array.
-# Two command files, identical except that one pins each step to a NUMA domain.
+# 16 steps of a 16-thread program, run 8 per node, so a 2-element array.
+# Three command files, the same except that the second binds each step to a
+# NUMA domain, and the third also binds each thread to a core.
 thread-placement/cmdfile: gen_cmdfile.sh Makefile
-	./gen_cmdfile.sh --nsteps 16 --nthreads 16 --exe ../hello_omp.exe --output $@
+	./gen_cmdfile.sh --nsteps 16 --exe ../hello_omp.exe --output $@
 
 thread-placement/cmdfile.numactl: gen_cmdfile_numactl.sh
-	./gen_cmdfile_numactl.sh $@
+	./gen_cmdfile_numactl.sh --nsteps 16 --nthreads 16 --output $@
 
 # ...and the same again, additionally binding one thread per physical core.
 thread-placement/cmdfile.numactl_bind: gen_cmdfile_numactl.sh
-	./gen_cmdfile_numactl.sh $@ bind
+	./gen_cmdfile_numactl.sh --nsteps 16 --nthreads 16 --bind --output $@
 
 # Build the NetCDF example's inputs, then both of its command files.  Slicing
 # the source file takes a few minutes; see netcdf-postproc/make_data.sh for

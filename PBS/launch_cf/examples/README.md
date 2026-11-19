@@ -10,6 +10,14 @@ to that if you need introductory material.
 
 ## Before you start
 
+- Clone this repository in your scratch space:
+
+  ```
+  cd $SCRATCH
+  git clone https://github.com/NCAR/hpc-demos.git
+  cd hpc-demos/PBS/launch_cf/examples/
+  ```
+
 - Set `PBS_ACCOUNT` to your project code: `export PBS_ACCOUNT=<project>`.
   Every submit script uses it.
 - Build the small test program that the first examples use by running
@@ -80,6 +88,6 @@ each README says what its runs cost. The largest are these:
 | ---- | ---- |
 | [`hello_omp.cpp`](hello_omp.cpp) | prints where each of its OpenMP threads runs; built by `make hello_omp.exe` |
 | [`gen_cmdfile.sh`](gen_cmdfile.sh) | writes a command file of N steps of one program |
-| [`gen_cmdfile_numactl.sh`](gen_cmdfile_numactl.sh) | the same, with each step bound to a NUMA domain |
+| [`gen_cmdfile_numactl.sh`](gen_cmdfile_numactl.sh) | the same, with each step bound to NUMA domains, for a chosen number of threads per step |
 | [`parse_steps.py`](parse_steps.py) | summarizes where the steps of a `hello_omp` run landed |
 | [`Makefile`](Makefile) | builds `hello_omp.exe` and the command files of the first examples; the comment at its top lists the targets |

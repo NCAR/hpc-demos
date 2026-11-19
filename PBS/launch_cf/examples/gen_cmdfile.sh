@@ -1,55 +1,41 @@
 #!/bin/bash
 #
-# Generate a launch_cf command file: one line per "step", plus a header
-# comment recording how launch_cf will map those steps onto a job array.
+# Write a launch_cf command file of N steps.  Step i runs
 #
-# The output is deterministic - regenerating a command file with the same
-# arguments reproduces it byte for byte - so it is safe to keep the result
-# under version control.
+#     <command> i
+#
+# so each step knows its own number.  launch_cf decides how the steps are
+# spread over nodes; see ../README.md.
 
 set -u
 
-#------------------------------------------------------------------
 usage ()
 {
     cat <<EOF
 $(basename ${0}) <options>
 
    -n|--nsteps  #STEPS    number of steps (command file lines).  Required.
-   -e|--exe     COMMAND   command run by each step, given the step number as
+   -e|--exe     COMMAND   command each step runs, given the step number as
                           its argument.  Default: "../hello_omp.exe"
    -o|--output  FILE      file to write.  Default: "./cmdfile"
-   -p|--ppn     #CPUS     processors/node launch_cf will be given, used only to
-                          document the resulting job array.  Default: 128
-   -t|--nthreads #THREADS threads/step launch_cf will be given, likewise.
-                          Default: 1
    -h|--help              this message
 
-Examples:
+Example:
 
-   # 640 single-threaded steps, the derecho-640procs tutorial:
+   # the 640 steps of the derecho-640procs example:
    $(basename ${0}) --nsteps 640 --output derecho-640procs/cmdfile
-
-   # 256 steps of a 4-thread OpenMP application:
-   $(basename ${0}) --nsteps 256 --nthreads 4 --output omp_cmdfile
 EOF
 }
 
-#------------------------------------------------------------------
-# defaults
 nsteps=""
 exe="../hello_omp.exe"
 output="./cmdfile"
-ppn=128
-nthreads=1
 
 while [ ${#} -gt 0 ]; do
     case ${1} in
-        "-n"|"--nsteps")    shift; nsteps="${1}";   shift ;;
-        "-e"|"--exe")       shift; exe="${1}";      shift ;;
-        "-o"|"--output")    shift; output="${1}";   shift ;;
-        "-p"|"--ppn")       shift; ppn="${1}";      shift ;;
-        "-t"|"--nthreads")  shift; nthreads="${1}"; shift ;;
+        "-n"|"--nsteps")    shift; nsteps="${1:-}"; shift ;;
+        "-e"|"--exe")       shift; exe="${1:-}";    shift ;;
+        "-o"|"--output")    shift; output="${1:-}"; shift ;;
         "-h"|"--help")      usage; exit 0 ;;
         *)
             echo "ERROR: unrecognized argument \"${1}\""
@@ -60,70 +46,26 @@ while [ ${#} -gt 0 ]; do
     esac
 done
 
-#------------------------------------------------------------------
-# argument checking
-[ -n "${nsteps}" ] || { echo "ERROR: --nsteps is required"; echo; usage; exit 1; }
-
-for arg in nsteps ppn nthreads; do
-    val="${!arg}"
-    case "${val}" in
-        ''|*[!0-9]*) echo "ERROR: --${arg} must be a positive integer, got \"${val}\""; exit 1 ;;
-    esac
-    [ "${val}" -gt 0 ] || { echo "ERROR: --${arg} must be a positive integer, got \"${val}\""; exit 1; }
-done
-
-[ ${nthreads} -le ${ppn} ] || { echo "ERROR: --nthreads (${nthreads}) cannot exceed --ppn (${ppn})"; exit 1; }
-
-#------------------------------------------------------------------
-# mirror the arithmetic launch_cf will perform on this command file, so the
-# header describes the job the user will actually get.
-steps_per_node=$(( ${ppn} / ${nthreads} ))
-[ ${nsteps} -lt ${steps_per_node} ] && steps_per_node=${nsteps}
-
-njobs=$(( ${nsteps} / ${steps_per_node} ))
-# evenly divisible?  then the last array index would be empty, so drop it.
-[ $(( ${njobs} * ${steps_per_node} )) -eq ${nsteps} ] && njobs=$(( ${njobs} - 1 ))
-array_elements=$(( ${njobs} + 1 ))
-
-# "a 5-element" vs "an 8-element"
-case ${array_elements} in
-    8|11|18|8[0-9]*|11[0-9]*|18[0-9]*) article="an" ;;
-    *)                                 article="a"  ;;
+case "${nsteps}" in
+    ''|*[!0-9]*|0) echo "ERROR: --nsteps must be a positive integer"; echo; usage; exit 1 ;;
 esac
 
-if [ ${njobs} -gt 0 ]; then
-    array_desc="${article} ${array_elements}-element job array (indices 0-${njobs})"
-else
-    array_desc="a single job (PBS does not allow a 1-element job array)"
-fi
-
-#------------------------------------------------------------------
-# write it.  Build in a temporary file and move into place, so an interrupted
-# run cannot leave a truncated command file behind.
+# Write to a temporary file and move it into place, so that an interrupted
+# run can't leave a truncated command file behind.
 tmp="${output}.tmp.$$"
 trap 'rm -f "${tmp}"' EXIT
 
 {
     echo "# launch_cf command file: ${nsteps} steps of \"${exe}\""
     echo "#"
-    echo "# Every non-comment line below is one step.  Given --ppn ${ppn} and"
-    echo "# --nthreads ${nthreads}, launch_cf will distribute them as:"
-    echo "#"
-    echo "#   steps/node = ppn / nthreads = ${ppn} / ${nthreads} = ${steps_per_node}"
-    echo "#   ${nsteps} steps / ${steps_per_node} per node -> ${array_desc},"
-    echo "#   one node per array element."
-    echo "#"
-    echo "# Generated by gen_cmdfile.sh.  To regenerate:"
-    echo "#   gen_cmdfile.sh --nsteps ${nsteps} --exe \"${exe}\" --output \"${output}\" \\"
-    echo "#                  --ppn ${ppn} --nthreads ${nthreads}"
-
+    echo "# Generated by gen_cmdfile.sh.  To write it again:"
+    echo "#   gen_cmdfile.sh --nsteps ${nsteps} --exe \"${exe}\" --output \"${output}\""
     for step in $(seq 1 ${nsteps}); do
         echo "${exe} ${step}"
     done
-} > "${tmp}"
+} > "${tmp}" || exit 1
 
-mv "${tmp}" "${output}"
+mv "${tmp}" "${output}" || exit 1
 trap - EXIT
 
 echo "Wrote ${nsteps} steps to ${output}"
-echo " -> ${steps_per_node} steps/node, ${array_desc}, ${array_elements} node(s)"
