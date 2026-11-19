@@ -20,8 +20,8 @@ to that if you need introductory material.
   `PATH`.
 
 Each example directory has a `README.md`. It describes the purpose of the
-example, what to run, and what to expect. Where an example grew out of a longer study, the
-full measurements are in a `DETAILS.md` beside it. You don't need those to
+example, what to run, and what to expect. Where an example grew out of a longer 
+study, the full measurements are in a `DETAILS.md` beside it. You don't need those to
 follow the examples.
 
 ## Where to start
@@ -46,7 +46,8 @@ Read the first four in order. After that, pick what fits your work.
 ### 3. Many threaded steps per node
 
 These use a Numba calculation that stands in for memory-bound
-post-processing.
+post-processing and demonstrate the effects of packing a node with many steps 
+on thread performance and IO.
 
 | example | what it does | what it shows |
 | ------- | ------------ | ------------- |
