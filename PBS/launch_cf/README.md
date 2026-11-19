@@ -364,7 +364,7 @@ This can be thought of as the number of CPUs available per node that can be used
 | Derecho | 128     | 128 | 1   |
 | Casper  | 1       | 36* | 1   |
 
-*Casper's high-throughput computing (HTC) nodes are of two types: 62 nodes with 36 cores (two 18-core Intel Xeon Gold 6240 processors) and 384 GB of memory, and 64 nodes with 62 usable cores (one 64-core AMD EPYC 9554P processor, 2 cores reserved for the operating system) and 768 GB. `launch_cf` allows at most 36 CPUs per node on Casper, so a job fits either type. Casper has other node types with different numbers of CPUs; see [Casper Node Types](https://ncar-hpc-docs.readthedocs.io/en/latest/compute-systems/casper/starting-casper-jobs/casper-node-types/). Asking for more CPUs than any available node has leaves a job waiting forever.
+*Casper's `htc` queue runs on two kinds of node, as PBS reports them: 64 AMD EPYC nodes that offer jobs 62 CPUs (one offers 64) and about 733 GB, and 54 Intel Xeon nodes (Cascade Lake and Skylake) that offer 36 CPUs, or 34 on 12 of them, and 330–360 GB. `launch_cf` allows at most 36 CPUs per node on Casper, which fits every one of these nodes except the 12 with 34; `--ppn 34` or less fits them all. Casper has other node types with different numbers of CPUs; see [Casper Node Types](https://ncar-hpc-docs.readthedocs.io/en/latest/compute-systems/casper/starting-casper-jobs/casper-node-types/). Asking for more CPUs than any available node has leaves a job waiting forever.
 
 This value works with `--steps-per-node` and `--nthreads` to determine the total node and CPU requirements for your job array. See [Waves](#waves) for how it decides which steps run at once.
 
@@ -414,7 +414,7 @@ Assigns the amount of memory available per node.  All the steps running at once 
 | Derecho | 235          | 235      | 4        |
 | Casper  | 10           | 733*     | 4        |
 
-*PBS lets a job request up to about 733 GB per node on Casper's 768 GB HTC nodes (AMD EPYC), and up to about 360 GB on its 384 GB HTC nodes (Intel Xeon). A request of more than 360 GB can only run on the 768 GB nodes. `launch_cf` doesn't check `--mem`, so a request larger than any node offers waits indefinitely. Casper also has large-memory nodes, with about 1.5 TB; see [Casper Node Types](https://ncar-hpc-docs.readthedocs.io/en/latest/compute-systems/casper/starting-casper-jobs/casper-node-types/).
+*PBS lets a job request up to about 733 GB per node on Casper's AMD EPYC HTC nodes (768 GB installed), and 330–360 GB on its Intel Xeon HTC nodes (384 GB installed). A request of more than 360 GB can only run on the AMD nodes. `launch_cf` doesn't check `--mem`, so a request larger than any node offers waits indefinitely. Casper also has large-memory nodes, with about 1.5 TB; see [Casper Node Types](https://ncar-hpc-docs.readthedocs.io/en/latest/compute-systems/casper/starting-casper-jobs/casper-node-types/).
 
 ## CPU Type
 
