@@ -1,160 +1,136 @@
-# One pass per file: ERA5 anomalies against a long-term climatology
+# ERA5 Anomalies, One File per Step
 
-This directory builds on [`../python-regrid-io`](../python-regrid-io). There,
-each ERA5 day's anomaly is measured against the mean of that same day, so
-every file is read and decompressed twice: once for the mean, then again for
-the anomaly (or kept whole in memory with `--keep`).
+This example computes temperature anomalies from ERA5 reanalysis files on
+GLADE, one day's file per `launch_cf` step, against a 1991–2020 climatology.
+It runs as two `launch_cf` jobs:
 
-Here the reference is the **1991–2020 climatology** of the calendar day,
-computed once. Each file then needs only **one pass**, and the work splits
-into two `launch_cf` jobs:
+1. **Build the climatology, once.** 366 steps, one per calendar day. Each
+   averages that day's 24 hourly fields over the 30 years and writes one
+   uncompressed field to `climo/`.
+2. **Analyse the files.** One step per ERA5 day. Each step reads its day's
+   climatology, then reads, decompresses and computes on each hour of the
+   file once.
 
-1. **Build the climatology, once.** `make_climo.sh` runs 366 steps, one per
-   calendar day. Each step averages that day's 24 hourly fields over the 30
-   years (8 leap years for 29 February) and writes one uncompressed field,
-   `climo/T_1991-2020_MMDD.h5` (37 × 721 × 1440 float32, 154 MB).
-2. **Analyse any number of days, one pass each.**
-   `calc_anomaly_numba_climo.py` reads the day's climatology, then reads,
-   decompresses and computes each hour once.
+It shows:
 
-This is also how such analyses are usually done in practice: anomalies are
-departures from a climate normal, not from the same day's mean.
+- **A two-stage workflow:** a one-time job whose output many later steps
+  reuse.
+- **Steps that read real, compressed data.** Decompressing the file costs
+  more than computing on it, so how a step decompresses matters.
+- **How to pack steps onto nodes for the least cost.** For this workload,
+  1 thread per step, bound to a NUMA domain, all 128 cores busy, and one
+  node running several waves, was the cheapest.
+
+Read [`../python-regrid`](../python-regrid) first. It introduces the
+calculation, NUMA binding and waves. The full measurements behind the advice
+here, including the two-pass versions this example replaced, are in
+[DETAILS.md](DETAILS.md).
+
+## The data and the calculation
+
+Each input file is one day of ERA5 temperature on pressure levels
+(`e5.oper.an.pl.128_130_t`, from GDEX dataset d633000 on GLADE): 24 hours ×
+37 levels × 721 latitudes × 1440 longitudes, 3.7 GB of 32-bit values,
+compressed to about 1.3 GB. Each hour is stored as one compressed chunk, so
+a program has to read and decompress a chunk to use an hour.
+
+For each hour, a step computes the anomaly from the climatology of its
+calendar day, plus the vertical difference and 5-point horizontal stencil of
+`../python-regrid`, with Numba threads.
+
+The step can read the file two ways:
+
+- **`climo`** (the default): a pool of threads reads the compressed bytes and
+  decompresses several hours at once.
+- **`climoh5`** (`--h5py`): HDF5 reads each hour through h5py. HDF5
+  decompresses on one thread, whatever the step's thread count.
+
+## Before you start
+
+- Set `$PBS_ACCOUNT` to your project code.
+- The scripts use `launch_cf --sync-waves`. They put a development copy of
+  `launch_cf` first in `PATH` until that option is in the installed one.
+- Building the climatology costs about **107 core-hours**. The analysis run
+  below costs about 7.
+
+## Running it
+
+From this directory on a Derecho login node:
+
+```bash
+./make_climo.sh                         # once: 366 steps on 4 nodes, about 15 minutes
+./submit_study.sh climo bound 1 1 4 0   # 512 files on one develop node
+./summarize_study.py                    # once it has finished
+```
+
+`make_climo.sh` writes `climo/T_1991-2020_MMDD.h5`, 154 MB per day. If some
+days fail, run it again: it submits only the days that are missing.
+
+`submit_study.sh climo bound 1 1 4 0` means: the `climo` reader, steps bound to
+NUMA domains, 1 thread per step, 1 node, 4 waves, starting at line 0 of
+[`era5_t_files.txt`](era5_t_files.txt). A node runs 128 one-thread steps at
+once, so 4 waves is 512 files. Each wave starts once the one before it has
+finished.
+
+## What to expect
+
+`summarize_study.py` prints one line per run. The column to watch is
+`node-s/step`: the node time the run used, divided by its files. It is the
+cost per file, and it compares runs of any shape. Expect about **0.33 to 0.36
+node-seconds per file**, and every one of the 512 steps `ok`.
+
+A one-thread step takes about 12 seconds alone on a node, but about 40
+seconds on a full node, because 128 steps share the node's memory bandwidth
+and its link to GLADE. That is expected: the cost per file is what matters,
+not the time of one step.
+
+Results vary from run to run by about 7% (up to 25% on 4 nodes), mostly with
+how busy GLADE is while the files are read.
+
+## Trying other layouts
+
+```
+./submit_study.sh <climo|climoh5|io|pario|keep> <bound|unbound> <threads> <nodes> <waves> <first file>
+```
+
+Give each run its own `<first file>`, so that no run reads files another has
+just read. For example, `./submit_study.sh climoh5 bound 1 1 4 512` runs the
+h5py reader on the next 512 files.
+
+`io`, `pario` and `keep` are the earlier two-pass scripts, which measure each
+hour against the mean of its own day instead of a climatology; see
+[DETAILS.md](DETAILS.md#the-two-pass-versions).
+
+## What we found
+
+- **Bind, and use 1 thread per step.** Bound 1-thread steps cost 0.33–0.36
+  node-s per file on one node, 8-thread steps about 0.5, and unbound 1-thread
+  steps 0.38–0.46.
+- **One node in several waves beats several nodes in one.** The same 512
+  files cost more spread over 2 or 4 nodes, largely because hundreds of
+  Python processes starting at once start slowly. And the 1-node jobs, in
+  `develop`, started within seconds, while 4-node jobs in `main` waited up
+  to 23 minutes.
+- **Parallel decompression wins alone, less so packed.** One step alone
+  is 5 times faster with `climo` than with `climoh5` at 16 threads. On a
+  full node, 128 one-thread steps already decompress 128 files at once, and
+  `climo` is only about 30% cheaper.
+- **The climatology pays off when it is reused.** The 107 core-hours spread
+  over all 31,000 ERA5 days since 1940 add 0.10 node-s per file.
 
 ## Files
 
 | file | role |
 | ---- | ---- |
-| `make_climo.sh` | submits the climatology build: 366 bound steps, 4 threads each, 4 nodes (`NODES`, `THREADS`, `QUEUE`, `WALLTIME`, `DAYS`, `DRYRUN`). Leaves out days already built, so running it again finishes a partial build |
-| `make_climo_day.py` | one calendar day: `./make_climo_day.py 0101 [--first 1991 --last 2020 --out climo]` |
-| `run_climo_day.sh` | one build step, timed by `/usr/bin/time` |
-| `calc_anomaly_numba_climo.py` | the one-pass analysis of one ERA5 file; `--h5py` reads each hour with h5py (HDF5 decompresses on one thread) instead of the parallel decompression |
-| `submit_study.sh` | `./submit_study.sh <climo\|climoh5\|io\|pario\|keep> <bound\|unbound> <threads> <nodes> <waves> <first file>`: packs nodes with analysis steps, one file per step |
-| `run_io_step.sh` | one analysis step, timed (`climo`: pario reader, `climoh5`: h5py reader) |
-| `solo.pbs` | one step alone on a develop node, both readers, 1–128 threads, uncached then cached |
-| `run_study.sh` | the 16 Nov study (repeated 17 Nov) as one chain of jobs: `solo.pbs`, one packed node, then nodes × waves × placement |
+| `make_climo.sh` | submits the climatology build: 366 bound steps, 4 threads each, 4 nodes (`NODES`, `THREADS`, `QUEUE`, `WALLTIME`, `DAYS`, `DRYRUN`) |
+| `make_climo_day.py`, `run_climo_day.sh` | one build step: one calendar day |
+| `calc_anomaly_numba_climo.py` | the one-pass analysis of one ERA5 file; `--h5py` for the h5py reader |
+| `submit_study.sh` | packs nodes with analysis steps, one file per step |
+| `run_io_step.sh` | one analysis step, timed |
 | `summarize_study.py` | one line per finished `submit_study.sh` run |
-| `era5_t_files.txt` | the ERA5 files to analyse, none in the climatology years: 4 April 1971 to 1979 (lines 0–3193, as first written), then 1940 to March 1971, 1980–1990 and 2021–2025 |
+| `era5_t_files.txt` | the ERA5 files to analyse, none from the climatology years |
 | `make_filelist.sh` | writes a file list for other months |
-| `calc_anomaly_numba_io.py`, `calc_anomaly_numba_pario.py` | the kernels and the parallel decompression, copied unchanged from `../python-regrid-io` |
 | `config_env.sh` | sourced by `launch_cf` on each node: `npl-2026a`, `NUMBA_THREADING_LAYER=omp` |
-
-## Running it
-
-```bash
-./make_climo.sh                               # once; about 15 minutes on 4 nodes
-./submit_study.sh climo bound 1 1 4 0         # 512 files on one develop node
-./summarize_study.py
-```
-
-## Results (16 Nov 2026)
-
-**Building the climatology** (job 8207608): 366 steps, all succeeded; 4
-nodes, 3 synchronized waves, 12.5 minutes, **107 core-hours**. Each step read
-its 30 files in about 4 minutes and wrote its 154 MB file in 0.3 s; 53 GB in
-all.
-
-**Analysis**, 512 files on one node, bound (jobs 8207720–8207722), compared
-with the best layouts of `../python-regrid-io`:
-
-| script | threads per step | node-s per file | peak memory per step |
-| ------ | ---------------: | --------------: | -------------------: |
-| `climo`, one pass | 1 | **0.36** | 1.5 GB |
-| `climo`, one pass | 2 | 0.37 | 1.6 GB |
-| `climo`, one pass | 4 | 0.40 | 1.9 GB |
-| `pario --keep`, same-day mean | 4 | 0.45 | 4.8 GB |
-| `pario`, same-day mean, two passes | 1 | 0.51 | 1.5 GB |
-
-One pass halves the core time spent waiting for data and unshuffling (18
-against 36 core-seconds per file at 1 thread) and needs no more memory than
-two-pass `pario`, so 1 thread per step, all 128 cores busy, is again the
-cheapest layout.
-
-The climatology is a one-time cost: about 3,000 node-seconds, or 3,000 ÷ N
-node-seconds per file over N files analysed. Over all ~31,000 ERA5 days since
-1940 that adds 0.10 (0.46 in total); over 30 years of days, 0.27 (0.63 in
-total, more than two-pass `pario`). It pays off when it is reused, by many
-files or many analyses.
-
-The full write-up, with the `python-regrid-io` studies, is the "ERA5 I/O
-scaling studies" report (Study 7).
-
-## h5py against pario, one pass (16 Nov 2026)
-
-`./run_study.sh` (jobs 8207950–8207988, about 360 core-hours, every step
-succeeded) compares the two readers of `calc_anomaly_numba_climo.py`:
-
-* **One step alone** (`solo.pbs`): h5py takes 13–16 s per file at every
-  thread count, because HDF5 decompresses on one thread. pario takes 12.2 s at
-  1 thread and 2.3–2.6 s from 16 threads up. Reading uncached adds at most 0.6 s.
-* **One packed node, bound, 512 files**, node-seconds per file:
-
-  | threads per step | 1 | 2 | 4 | 8 | 16 |
-  | ---------------- | -: | -: | -: | -: | -: |
-  | pario (`climo`)  | **0.36** | 0.37 | 0.40 | 0.49 | 0.61 |
-  | h5py (`climoh5`) | 0.49 | 0.43 | 0.67 | 1.07 | – |
-  | pario, 17 Nov    | **0.33** | 0.35 | 0.36 | 0.51 | 0.62 |
-  | h5py, 17 Nov     | 0.48 | 0.47 | 0.62 | 1.06 | – |
-
-  Packed, the readers are much closer than alone: one step per core already
-  decompresses 128 files in parallel. Steps slow down 2–4× against running
-  alone; the memory-bound compute slows most (about 10× at 1 thread).
-* **Nodes against waves, 512 files per case** (4 × t, 2 × 2t, 1 × 4t waves at
-  t threads), bound and unbound: one node is the cheapest layout in 11 of 12
-  series (12 of 12 in the repeat); bound beats unbound most at 1 thread (0.36
-  against 0.46, repeat 0.33 against 0.43). 4-node jobs in `main` waited up to 23
-  minutes for their last node, while 1- and 2-node `develop` jobs started
-  within seconds.
-
-The full write-up is the "ERA5 one-pass studies" report.
-
-### Repeat (17 Nov 2026)
-
-`./run_study.sh 19984` ran the whole chain again (jobs 8218722–8218766, about
-430 core-hours), plus the three earlier pario runs and two more `solo.pbs`
-runs. Lines 20451 onward of `era5_t_files.txt` are the 19,700 files whose
-access time showed no read for at least 24 hours; the list as of 16 Nov is
-`era5_t_files.20261116.txt`.
-
-* Node-seconds per file changed by a median of 7% across the 39 runs: 5% on 1
-  or 2 nodes (largest 18%), 11% on 4 nodes (largest 25%).
-* Unshuffle and compute hardly change between runs. Start-up changes most: a
-  packed first wave's steps took 2–27 s to start. Waiting for data comes next.
-* Every ranking held: pario against h5py packed, one node against more,
-  bound against unbound for pario at 1–4 threads. Two claims did not: h5py at
-  2 threads against 1 (0.47 against 0.48 in the repeat), and 4 nodes × 1 wave
-  costing the same bound or unbound (0.43 against 0.57).
-* One step alone repeats within 0.7 s at every thread count (four runs).
-
-### Study C a third time (18 Nov 2026)
-
-All 36 study C runs again (jobs 8226947–8226983, about 380 core-hours,
-`logs/run_studyC.20261118.log`), from lines 40000–58431 of
-`era5_t_files.txt`. The appended files are the least recently read, each
-last read at least 16 hours earlier. These runs were submitted at once, not
-chained. The 12 four-node `main` jobs started together, alongside the
-`develop` jobs, and for 12 minutes up to 20 nodes read at once. The 17 runs in
-that window cost 17% more than the mean of 16 and 17 Nov: pario 28% more,
-almost all of it waiting for data, and h5py 2% more. The 19 later runs, two or
-three nodes at a time, cost 2% less. Averaged over the three runs, one node
-is the cheapest layout in 11 of 12 series. The exception is pario bound at 8
-threads, whose 18 Nov 1-node run shared the file system. Four nodes is the
-most expensive layout in all 12 series.
-
-Two bumps in the three-run means for pario bound at 2 threads come from
-single 18 Nov runs, not from the layout:
-
-* **Start-up, 1 node × 8 waves**, does not keep falling with fewer nodes.
-  The 18 Nov run's first wave took 22.6 s to start, against 8.6 and 9.5 s in
-  the other two runs (later waves 1.4–1.9 s). Without it, the 1-node layout is
-  about 0.04 node-s per file, against 0.065 for 2 nodes × 4 waves.
-* **Waiting for data** rises from 2 × 4 (0.095 node-s per file) to 1 × 8
-  (0.103). The 18 Nov 1-node run (job 8226958) waited 10–13 s per step for
-  its first six waves, then 3–6 s, against 2–5 s in the 17 Nov run. It ran
-  outside the window when 20 nodes read at once, so campaign storage was
-  probably busy with other users' reads. The 17 Nov runs follow the trend
-  (0.061 against 0.089); the 16 Nov ones are within noise (0.093 against
-  0.082).
-
-A 1-node run reads during one stretch of time, so one slow patch of storage
-moves its whole result. The mean of three runs still moves by 0.02–0.05
-node-s per file.
+| `calc_anomaly_numba_io.py`, `calc_anomaly_numba_pario.py` | the two-pass scripts (h5py and parallel decompression) |
+| `solo.pbs`, `io_cold.pbs` | one step alone on a node, at 1 to 128 threads, uncached then cached: one-pass and two-pass scripts |
+| `run_study.sh` | the 16 Nov study as one chain of jobs; see [DETAILS.md](DETAILS.md) |

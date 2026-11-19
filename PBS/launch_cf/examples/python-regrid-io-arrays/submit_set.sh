@@ -16,7 +16,7 @@
 # so no shape is always first in line.
 #
 # Each run asks for walltime  300 s + 20 s per wave, rounded up to 5 minutes:
-# a wave takes about 11 s (python-regrid-io), so this is what a user who knew
+# a wave takes about 11 s (python-regrid-climo/DETAILS.md), so this is what a user who knew
 # that would ask for.
 #
 # Writes, for each run,

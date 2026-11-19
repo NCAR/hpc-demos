@@ -15,7 +15,8 @@ In short: binding made the calculation **about 1.25 times faster on average,
 and the slowest step 1.45 times faster**, and every bound step ran at the same
 speed. But each step is short, and on a fresh node starting Python takes
 longer than calculating, so the jobs as a whole show the difference only
-roughly. See [Results](#results).
+roughly. See [What we found](#what-we-found), and [DETAILS.md](DETAILS.md)
+for the measurements.
 
 The pattern to copy is one prefix on each line of the command file:
 
@@ -103,8 +104,8 @@ The `_waves` scripts ask for all 32 steps on one node with
 16, and **starts the next one as soon as any step finishes**. It does not wait
 for all 16 to finish. This needs a newer `launch_cf` than the one installed on
 Derecho, which rejects that request because 32 × 8 is more than 128 cores. The
-submit scripts put a development copy (the `launch_cf-multiple-waves` branch
-of [NCAR/pbstools](https://github.com/NCAR/pbstools)) first in `PATH`.
+submit scripts put a development copy of
+[NCAR/pbstools](https://github.com/NCAR/pbstools) first in `PATH`.
 
 | file                   | role |
 | ---------------------- | ---- |
@@ -148,68 +149,19 @@ Elapsed time: 0:10.08 | Max RSS: 889544 KB | Major faults: 6 | Swaps: 0 | ...
 | `Elapsed time` | the whole step, from `/usr/bin/time`, including starting Python and loading Numba |
 | `Max RSS`      | the most memory the step used, here about 0.9 GB |
 
-## Results
+## What we found
 
-Runs of 12 November 2026, 32 steps each. `Compute` is the average over the 32
-steps, with the slowest step in brackets. Node time is what `launch_cf`
-reports for each node, to the nearest second, and node-seconds is its total.
+- **Binding made the calculation about 1.25 times faster** on average, and
+  the slowest step 1.45 times faster. Every bound step ran at nearly the same
+  speed; unbound steps varied from 13.6 to 25.3 GB/s.
+- **Starting Python is a big part of a short step.** On a fresh node, a step
+  took 9 to 11 seconds, mostly before computing; once the node had Python and
+  Numba in memory, 3 to 4. Placement can only speed up the computing.
+- **Waves used one node instead of two**, and no more node-seconds (15
+  against 15 bound, 17 against 25 unbound): the second wave's steps started
+  on a node that already had Python loaded.
 
-| run                    | `Compute`, s | `Est. BW`, GB/s (range) | node time, s       | node-seconds |
-| ---------------------- | ------------ | ----------------------- | ------------------ | ------------ |
-| bound, 2 nodes         | 2.07 (2.15)  | 20.5 (19.7 – 22.1)      | 11, then 4 on the same node | 15  |
-| unbound, 2 nodes       | 2.58 (3.11)  | 16.9 (13.6 – 25.3)      | 11, 14             | 25           |
-| bound, 1 node, waves   | 2.08 (2.20)  | 20.5 (19.3 – 22.2)      | 15                 | 15           |
-| unbound, 1 node, waves | 2.54 (3.13)  | 13.6 – 25.6, and one at 91.7 | 17            | 17           |
-
-### Binding made the calculation faster and steady
-
-- **Bound steps computed about 1.25 times faster on average** (2.07 s against
-  2.58 s), and the slowest bound step 1.45 times faster than the slowest
-  unbound one.
-- **Every bound step ran at nearly the same speed**, 19.3 to 22.2 GB/s.
-  Unbound steps ranged from 13.6 to 25.3 GB/s: a lucky one now and then beat
-  every bound step, but most were slower.
-
-### Starting up is a big part of a short step
-
-`Compute` is only 2 to 3 seconds. How long the rest of a step takes depends
-on whether the node has run these steps before:
-
-- **On a fresh node, a step takes 9 to 11 seconds**, mostly before it computes
-  anything, apparently while 16 Python processes at once load Python, NumPy
-  and Numba from the shared file system.
-- **Once the node has those files in memory, a step takes 3 to 4 seconds.**
-  The bound 2-node run shows this: PBS gave both of its array jobs the same
-  node, one after the other. The first took 11 seconds, the second 4.
-
-That startup doesn't depend on placement, and it varies from node to node,
-so it blurs the comparison of whole jobs. A real analysis that computes for
-minutes per step would see the full effect of binding on its run time. To see
-it here, give the steps more work, for example by adding `--iters 400` to the
-`calc_anomaly_numba.py` line in `run_step.sh`.
-
-The lesson for your own runs: look at which part of a step takes the time.
-Placement can only speed up the computing.
-
-### Waves: one node instead of two
-
-Running all 32 steps on one node, 16 at a time, took 15 seconds bound and 17
-unbound, against two nodes for 11 to 14 seconds each. Jobs are charged by node
-time, so waves used fewer node-seconds, and a one-node job may also wait less
-in the queue. Waves gain from the startup effect above: the second 16 steps
-start on a node that already has Python and Numba loaded, and took 3 to 4
-seconds each instead of 9 to 11.
-
-Because a new step starts as soon as any one finishes, the steps don't stay
-in step. In the unbound run, step 17 started a second before the others
-and had the node almost to itself: it computed in 0.46 seconds, at 91.7 GB/s.
-Each step's speed depends on how busy the node is.
-
-With `numactl` and waves, the domain of each new step comes from its line in
-the command file, not from the step that just finished. If steps in one
-domain finish early, a new step can start in a domain that is still full.
-Here all 16 bound steps finished within the same second, so that didn't
-happen.
+The run-by-run results are in [DETAILS.md](DETAILS.md).
 
 ## Using this with your own work
 

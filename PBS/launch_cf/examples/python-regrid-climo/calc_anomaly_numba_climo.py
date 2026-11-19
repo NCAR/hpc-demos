@@ -25,8 +25,8 @@ thread only, one hour at a time, while the Numba threads wait.  The two
 readers give the same Checksum.
 
 The kernels, decompression and first-touch layout are those of
-calc_anomaly_numba_io.py and calc_anomaly_numba_pario.py (copied unchanged
-from ../python-regrid-io).
+calc_anomaly_numba_io.py and calc_anomaly_numba_pario.py, the two-pass
+scripts in this directory.
 """
 import os
 import re

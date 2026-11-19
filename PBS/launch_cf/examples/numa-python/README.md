@@ -105,7 +105,7 @@ time spent in the domain that holds their data.
 
 (These were measured with the advanced version of the script, which ran
 these three cases along with others; see
-[`../numa-python-advanced`](../numa-python-advanced#results).)
+[`../numa-python-advanced`](../numa-python-advanced/DETAILS.md#results).)
 
 - **Binding gave the node 1.6 times the throughput.** Every bound process ran
   at about the same speed, in every repeat.

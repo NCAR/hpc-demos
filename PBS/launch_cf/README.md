@@ -2,6 +2,8 @@
 
 Multiple Program, Multiple Data (MPMD) jobs run multiple independent, typically serial executables simultaneously. Such jobs can easily be dispatched with PBS job arrays, even on machines like Derecho where compute nodes are exclusively and entirely assigned to a users' job.
 
+Worked examples, from a first job to real analyses of ERA5 data, are in [`examples/`](examples/README.md), with a suggested reading order.
+
 # Where `launch_cf` Comes From
 
 `launch_cf` is maintained in the [NCAR/pbstools](https://github.com/NCAR/pbstools) repository,

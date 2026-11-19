@@ -13,7 +13,7 @@
 #           pass 2 (not --keep) finds it in this node's page cache
 #   cached  the same file straight away, all from the page cache
 #
-# Submit with:  qsub -A $PBS_ACCOUNT -v FIRST=15053 io_cold.pbs
+# Submit with:  qsub -A $PBS_ACCOUNT -v FIRST=<first unused line> io_cold.pbs
 #
 #PBS -N io_cold
 #PBS -q develop

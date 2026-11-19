@@ -18,9 +18,8 @@ allocation. If you have a small allocation, such as an exploratory one, this
 is a good way to make it last. See [Running on the preempt queue](#running-on-the-preempt-queue).
 
 > `--nodes` and `--rerun` are new, and not yet in the `launch_cf` installed on
-> Derecho. The scripts here put a development copy (the
-> `launch_cf-multiple-waves` branch of
-> [NCAR/pbstools](https://github.com/NCAR/pbstools)) first in `PATH`.
+> Derecho. The scripts here put a development copy of
+> [NCAR/pbstools](https://github.com/NCAR/pbstools) first in `PATH`.
 
 ## The steps
 
@@ -105,7 +104,7 @@ Then run three of them for real on the develop queue:
 
 On 13 November 2026 all 32 steps of each succeeded. With 3 nodes, steps 1-11,
 12-22 and 23-32 ran on three different nodes. Each node took 4 to 12 seconds;
-most of that is starting Python (see [`../python-regrid`](../python-regrid#starting-up-is-a-big-part-of-a-short-step)).
+most of that is starting Python (see [`../python-regrid`](../python-regrid/DETAILS.md#starting-up-is-a-big-part-of-a-short-step)).
 
 ## Running on the preempt queue
 
@@ -158,57 +157,11 @@ left, each node runs 16, all at once, on as many nodes as that needs.
 `--rerun` does not take the earlier job's options, so you choose the layout
 again for what's left.
 
-On 13 November 2026, job 8179906 waited in the queue for an hour and a half
-(submitted at 15:30, its nodes started between 17:02 and 17:06), while about
-1,200 jobs were waiting for `main`. Each of its 4 nodes then ran its 64 steps
-in 21.6 to 21.7 minutes, and each step computed for 307 to 328 seconds. No
-node was taken back, so all 256 steps succeeded:
-
-```
-$ ./rerun_preempt.sh 8179906
-All 256 steps of job 8179906 succeeded; there is nothing to rerun.
-```
-
-The 1.44 node-hours were charged about 37 core-hours, where `main` would
-have charged 185.
-
-Whether a job loses nodes depends on how busy Derecho is while it runs, so
-yours may. On 17 November 2026, a smaller test did. Job 8219627 ran the 32
-steps of `cmdfile.medium` on 2 preempt nodes. PBS took back node 0 after 82
-seconds, before any step had finished (its exit status, 271, is 256 + 15:
-ended by `SIGTERM`). Node 1 started two minutes later, and was ended with
-`qdel` a minute into its steps (see the next section). `--rerun` found all
-32 steps cut short:
-
-```
-$ ./rerun_preempt.sh 8219627
-Job 8219627: 32 of 32 steps did not succeed:
-  step 1 of job 8219627: cut short: subjob 0 stopped while it ran
-  step 2 of job 8219627: cut short: subjob 0 stopped while it ran
-  ...
-  ... and 22 more
-Wrote ./cmdfile.medium.8219627.rerun, to submit as the command file.
-```
-
-and submitted them as job 8219691, again on the preempt queue. It waited two
-and a half hours, then ran on 2 nodes, and every step succeeded:
-
-```
-$ ./rerun_preempt.sh 8219691
-All 32 steps of job 8219691 succeeded; there is nothing to rerun.
-```
-
-Run from any other directory, `rerun_preempt.sh` stops and says where the job
-was submitted from, while PBS still has the job's history (on 17 November it
-no longer had the jobs of 13 November):
-
-```
-$ cd /some/other/dir
-$ .../python-regrid-nodes-rerun/rerun_preempt.sh 8219627
-ERROR: no PBS output files of job 8219627 (*.o8219627*) in /some/other/dir
-       Job 8219627 was submitted from .../python-regrid-nodes-rerun:
-       run launch_cf --rerun from there, e.g. after "cd .../python-regrid-nodes-rerun".
-```
+What happens depends on how busy Derecho is. In our runs, a 4-node job of
+`cmdfile.long` waited an hour and a half to start, then ran untouched: all
+256 steps succeeded, for about 37 core-hours instead of 185. A smaller 2-node
+test lost a node to preemption after 82 seconds, and one rerun finished every
+step. [DETAILS.md](DETAILS.md) has both runs, with `--rerun`'s output.
 
 The next section shows how to try `--rerun` without waiting for a preemption.
 
