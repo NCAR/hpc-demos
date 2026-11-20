@@ -1,0 +1,8 @@
+# Numba writes its compiled-code cache here
+__pycache__/
+# ERA5 file lists on GLADE, written by make_filelist.sh
+era5_t_files*.txt
+# command files written for each run
+cmdfiles/
+# climatology files written by make_climo.sh
+climo/

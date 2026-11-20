@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+# One whole develop node, one run at a time: the current (two-pass) scripts
+# reading a file that is NOT cached, then the same file again once it is.
+#
+#   io     calc_anomaly_numba_io.py          h5py, decompression on one thread
+#   pario  calc_anomaly_numba_pario.py       parallel decompression
+#   keep   calc_anomaly_numba_pario.py --keep  decompress each chunk once
+#
+# Each (script, threads) pair gets a file no earlier run has read, from
+# era5_t_files.txt starting at line FIRST (counting from 0):
+#   cold    first read of that file: pass 1 comes from Campaign Storage;
+#           pass 2 (not --keep) finds it in this node's page cache
+#   cached  the same file straight away, all from the page cache
+#
+# Submit with:  qsub -A $PBS_ACCOUNT -v FIRST=<first unused line> io_cold.pbs
+#
+#PBS -N io_cold
+#PBS -q develop
+#PBS -l select=1:ncpus=128:mem=235G
+#PBS -l walltime=0:30:00
+#PBS -j oe
+
+cd "${PBS_O_WORKDIR}"
+source config_env.sh
+FIRST="${FIRST:?set FIRST, the first unused line of era5_t_files.txt}"
+
+echo "Node: $(hostname)  Env: ${CONDA_DEFAULT_ENV}  Layer: ${NUMBA_THREADING_LAYER}"
+
+# Warm-up, not part of the results: loads the Numba cache, on a file the
+# timed runs don't use.
+echo "== warm-up (discarded)"
+OMP_NUM_THREADS=8 ./calc_anomaly_numba_pario.py --nsteps 2 > /dev/null
+
+i=0
+for script in io pario keep; do
+    for nt in 1 2 4 8 16; do
+        file=$(sed -n "$(( FIRST + i + 1 ))p" era5_t_files.txt)
+        i=$(( i + 1 ))
+        for state in cold cached; do
+            echo "== ${script}, threads ${nt}, ${state}: $(basename "${file}")"
+            OMP_NUM_THREADS=${nt} ./run_io_step.sh "${script}" "${nt}" "${file}"
+        done
+    done
+done
+echo "Used lines ${FIRST}..$(( FIRST + i - 1 )) of era5_t_files.txt"

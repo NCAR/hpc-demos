@@ -1,0 +1,44 @@
+#!/bin/bash
+#
+# One step alone on a whole develop node, one run at a time: the one-pass
+# climatology script with each reader,
+#
+#   climoh5  calc_anomaly_numba_climo.py --h5py  HDF5 decompresses on one thread
+#   climo    calc_anomaly_numba_climo.py         parallel decompression
+#
+# at 1 to 128 threads (not bound: Linux places the threads), reading a file
+# no earlier run has read (uncached), then the same file again straight away
+# (cached).  Each thread count gets its own file, from era5_t_files.txt
+# starting at line FIRST (counting from 0), used by both readers in turn.
+#
+# Submit with:  qsub -A $PBS_ACCOUNT -v FIRST=1536 solo.pbs
+#
+#PBS -N solo
+#PBS -q develop
+#PBS -l select=1:ncpus=128:mem=235G
+#PBS -l walltime=0:30:00
+#PBS -j oe
+
+cd "${PBS_O_WORKDIR}"
+source config_env.sh
+FIRST="${FIRST:?set FIRST, the first unused line of era5_t_files.txt}"
+
+echo "Node: $(hostname)  Env: ${CONDA_DEFAULT_ENV}  Layer: ${NUMBA_THREADING_LAYER}"
+
+# Warm-up, not part of the results: loads the Numba cache and the
+# climatology code, on a file the timed runs don't use (only 2 hours).
+echo "== warm-up (discarded)"
+OMP_NUM_THREADS=8 ./calc_anomaly_numba_climo.py --nsteps 2 --file "$(sed -n 1p era5_t_files.txt)" > /dev/null
+
+i=0
+for nt in 1 2 4 8 16 32 64 128; do
+    for script in climoh5 climo; do
+        file=$(sed -n "$(( FIRST + i + 1 ))p" era5_t_files.txt)
+        i=$(( i + 1 ))
+        for state in cold cached; do
+            echo "== ${script}, threads ${nt}, ${state}: $(basename "${file}")"
+            OMP_NUM_THREADS=${nt} ./run_io_step.sh "${script}" "${nt}" "${file}"
+        done
+    done
+done
+echo "Used lines ${FIRST}..$(( FIRST + i - 1 )) of era5_t_files.txt"

@@ -1,0 +1,21 @@
+# build product - an architecture-specific binary, rebuild with "make"
+hello_omp.exe
+*.o
+*~
+
+# Job output: nothing a run produces belongs in the repository.
+# The tutorial quotes the interesting parts inline instead.
+
+# per-step stdout collected by launch_cf
+stdout-*/
+# PBS job output, launch_cf.o<jobid>.<array index>
+launch_cf.o*
+# the PBS script launch_cf generates and submits
+launch_cf.*.pbs
+# submission logs: launch_cf.log, launch_cf.numactl.log, ...
+*.log
+# parse_steps.py output
+*.csv
+
+# PBS job output, <jobname>.o<jobid>[.<array index>]
+*.o[0-9]*

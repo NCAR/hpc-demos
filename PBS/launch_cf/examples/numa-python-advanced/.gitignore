@@ -1,0 +1,10 @@
+# numa_test.sh writes one log per run; the README quotes the results instead.
+numa_test.*.log
+# PBS output of numa_test.sh submitted as a batch job, or its saved stdout
+numa_test.o*
+numa_test.log
+
+# The command files list ERA5 files on GLADE, so they are generated on
+# Derecho (gen_cmdfile_numa.sh) rather than tracked.
+cmdfile
+cmdfile.pinned
